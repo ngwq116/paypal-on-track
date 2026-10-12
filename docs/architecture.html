@@ -1,0 +1,562 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>On-Track Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="topbar"><div class="topbar-inner">
+  <a class="brand" href="index.html">On<span>-</span>Track</a>
+  <nav>
+    <a href="index.html">Overview</a>
+    <a href="prd.html">PRD</a>
+    <a href="market-research.html">Market research</a>
+    <a href="architecture.html" aria-current="page">Tech stack &amp; architecture</a>
+  </nav>
+</div></div>
+
+<div class="layout">
+<aside class="toc">
+  <p>Contents</p>
+  <ol>
+    <li><a href="#principles">1. Design principles</a></li>
+    <li><a href="#stack">2. Tech stack</a></li>
+    <li><a href="#system">3. System overview</a></li>
+    <li><a href="#data">4. Data model</a></li>
+    <li><a href="#states">5. State machines</a></li>
+    <li><a href="#flows">6. Key flows</a></li>
+    <li><a href="#ai">7. AI design</a></li>
+    <li><a href="#guardrails">8. Payment guardrails</a></li>
+    <li><a href="#paypal">9. PayPal integration</a></li>
+    <li><a href="#bryntum">10. Bryntum integration</a></li>
+    <li><a href="#repo">11. Repo structure</a></li>
+    <li><a href="#config">12. Config &amp; deploy</a></li>
+    <li><a href="#plan">13. Build plan</a></li>
+  </ol>
+</aside>
+
+<main>
+<header class="doc-head">
+  <div class="eyebrow">Technical design</div>
+  <h1>Tech stack &amp; architecture</h1>
+  <p class="lede">How On-Track is built: one Next.js app on Render, Postgres, Claude Haiku 5.5 for reading contracts and invoices, PayPal sandbox for money, and Bryntum Scheduler and Calendar for the views. Requirements IDs (R1…) refer to the <a href="prd.html#requirements">PRD</a>.</p>
+  <div class="meta">
+    <span>Version: 0.1</span>
+    <span>Date: Oct 12, 2026</span>
+    <span>Status: Draft</span>
+  </div>
+</header>
+
+<section id="principles">
+  <h2>1. Design principles</h2>
+  <div class="grid">
+    <div class="card"><h4>AI proposes, code decides</h4><p>The AI produces verdicts and proposals. Whether money moves is decided by a plain TypeScript guardrail function the AI cannot bypass (R15–R17).</p></div>
+    <div class="card"><h4>PayPal is the source of truth</h4><p>"Paid" only becomes true when a verified PayPal webhook says so, never because the UI or the agent assumed it.</p></div>
+    <div class="card"><h4>Every money call is idempotent</h4><p>Payout batch IDs and invoice numbers derive from our own record IDs, so a retry can never pay twice (R16).</p></div>
+    <div class="card"><h4>One app, few moving parts</h4><p>Solo builder, 35 hours. One deployable, one database, no queues. Background work runs inside request handlers or webhook handlers.</p></div>
+  </div>
+</section>
+
+<section id="stack">
+  <h2>2. Tech stack</h2>
+  <div class="table-wrap"><table>
+    <tr><th>Layer</th><th>Choice</th><th>Why</th></tr>
+    <tr><td>Framework</td><td><strong>Next.js</strong> (App Router) + <strong>TypeScript</strong></td><td>UI and API in one deployable. The Anthropic SDK has a TypeScript package, and PayPal is called through its REST API.</td></tr>
+    <tr><td>Timeline views</td><td><strong>Bryntum Scheduler</strong> + <strong>Bryntum Calendar</strong> (React wrappers, trial packages)</td><td>Bryntum prize. Both views share the same event data (R13, R14).</td></tr>
+    <tr><td>UI kit</td><td><strong>Tailwind CSS</strong> + <strong>shadcn/ui</strong></td><td>Fast, consistent side panel, dialogs, forms and toasts without custom design work.</td></tr>
+    <tr><td>Validation</td><td><strong>Zod</strong></td><td>One schema validates API input, AI structured output and webhook payloads.</td></tr>
+    <tr><td>Database</td><td><strong>PostgreSQL</strong> on Render + <strong>Drizzle ORM</strong></td><td>Typed queries, simple migrations. Render's disk is ephemeral, so SQLite would lose data on redeploy.</td></tr>
+    <tr><td>File storage</td><td>Postgres <code>bytea</code> column (demo scale)</td><td>Contracts, screenshots and invoices are small and few. Avoids a separate storage service.</td></tr>
+    <tr><td>AI model</td><td><strong>Claude Haiku 5.5</strong> (<code>claude-haiku-5-5</code>) via the Anthropic TypeScript SDK. Fallback: Claude Sonnet 5.5 (<code>claude-sonnet-5-5</code>)</td><td>The AI jobs are extraction and comparison, which suit a small, fast model. Haiku costs $0.10 / $0.50 per million input / output tokens, about 20× cheaper than Sonnet 5.5 ($2 / $10). The model is one setting (<code>AI_MODEL</code>), so switching needs no code change.</td></tr>
+    <tr><td>Agent ("Should")</td><td>Anthropic SDK tool-use loop + our own guarded tools; optionally the <strong>PayPal MCP server</strong> for invoice tools</td><td>The PayPal MCP server has invoice, order, subscription and dispute tools but <strong>no payouts</strong> (<a href="prd.html#questions">PRD Q3</a>). Payout and reschedule tools are our own, so they always pass through the guardrail.</td></tr>
+    <tr><td>Payments</td><td><strong>PayPal REST API</strong> (sandbox): Invoicing v2, Payouts v1, Webhooks</td><td>Invoicing covers client billing. Payouts covers creator payments, called directly because it is not in the MCP server. Webhooks drive automatic updates. USD only.</td></tr>
+    <tr><td>Scheduled payouts</td><td><strong>Render Cron Job</strong>, daily, calls <code>POST /api/payouts/run-due</code></td><td>Sends approved payouts whose date has arrived (R25). "Send now" calls the same code path for one payout, which is what the demo uses.</td></tr>
+    <tr><td>Live updates</td><td>Client polling every 3 s on the campaign endpoint</td><td>Simplest thing that works on Render. Switch to Server-Sent Events only if polling looks sluggish in the video.</td></tr>
+    <tr><td>Hosting</td><td><strong>Render</strong> web service + Render Postgres</td><td>Render prize, $50 credits, public HTTPS URL for PayPal webhooks.</td></tr>
+    <tr><td>Dev tooling</td><td>Claude Code + <strong>APIMatic Context Plugin for PayPal</strong>; ngrok or cloudflared tunnel for local webhooks</td><td>APIMatic prize, and correct PayPal API usage without reading every reference page.</td></tr>
+    <tr><td>Testing</td><td>Vitest for guardrails and state transitions; an AI eval script over seeded files</td><td>Guardrails must be proven correct. The eval script measures the PRD's accuracy targets.</td></tr>
+  </table></div>
+</section>
+
+<section id="system">
+  <h2>3. System overview</h2>
+  <div class="diagram"><pre class="mermaid">
+flowchart TB
+  subgraph Browser["Browser (Next.js client)"]
+    TV["Team view<br/>Bryntum Scheduler"]
+    CV["Calendar view<br/>Bryntum Calendar"]
+    SP["Side panel<br/>verdicts, Pay / Hold / Approve"]
+    AB["Agent command bar"]
+  end
+
+  subgraph App["Next.js server on Render"]
+    API["API routes<br/>/api/campaigns, /api/uploads,<br/>/api/actions, /api/agent"]
+    WH["/api/webhooks/paypal"]
+    AI["AI services<br/>ContractExtractor<br/>InvoiceMatcher<br/>PostPreCheck (optional)"]
+    AG["Payment agent<br/>tool-use loop"]
+    GR["Guardrail<br/>canPay(), canReschedule()"]
+    PP["PayPal client<br/>Invoicing, Payouts"]
+    AU["Audit logger"]
+  end
+
+  DB[("Postgres<br/>Render")]
+  CL["Claude API<br/>claude-haiku-5-5"]
+  PS["PayPal sandbox"]
+  CR["Render Cron<br/>daily run-due"]
+
+  TV & CV & SP & AB -->|"fetch / poll 3s"| API
+  API --> AI --> CL
+  API --> AG --> CL
+  AG --> GR
+  API --> GR
+  GR -->|"allowed"| PP --> PS
+  PS -->|"webhook events"| WH
+  WH -->|"verify signature"| PP
+  CR -->|"POST /api/payouts/run-due"| API
+  API & WH & GR --> AU
+  API & WH & AU --> DB
+  </pre></div>
+  <p><strong>Request path in one sentence:</strong> the UI calls an API route; AI services turn uploaded files into verdicts; any money action, whether from a button or the agent, goes through the guardrail; allowed actions call PayPal; PayPal confirms by webhook; the UI picks up the new state on its next poll.</p>
+</section>
+
+<section id="data">
+  <h2>4. Data model</h2>
+  <div class="diagram"><pre class="mermaid">
+erDiagram
+  CLIENT ||--o{ CAMPAIGN : "commissions"
+  CAMPAIGN ||--|| CONTRACT : "is defined by"
+  CAMPAIGN ||--o{ CLIENT_INVOICE : "bills (deposit, balance)"
+  CAMPAIGN ||--o{ ASSIGNMENT : "has"
+  CREATOR ||--o{ ASSIGNMENT : "works on"
+  ASSIGNMENT ||--o{ SUBMISSION : "receives proof or invoice"
+  SUBMISSION ||--o{ VERIFICATION : "is checked by"
+  ASSIGNMENT ||--o| PAYOUT : "is paid by"
+  CAMPAIGN ||--o{ AUDIT_EVENT : "logs"
+
+  CLIENT {
+    uuid id
+    string name
+    string paypal_email
+  }
+  CAMPAIGN {
+    uuid id
+    string name
+    date start_date
+    date end_date
+    bool deposit_cleared
+    string currency
+  }
+  CONTRACT {
+    uuid id
+    bytea file
+    jsonb extracted_terms
+    bool confirmed
+  }
+  CLIENT_INVOICE {
+    uuid id
+    string kind
+    decimal amount
+    date due_date
+    string paypal_invoice_id
+    string status
+  }
+  CREATOR {
+    uuid id
+    string name
+    string type
+    string handle
+    string paypal_email
+  }
+  ASSIGNMENT {
+    uuid id
+    decimal fee
+    date due_date
+    jsonb brief
+    string status
+  }
+  SUBMISSION {
+    uuid id
+    string kind
+    bytea file
+    string link
+    timestamp submitted_at
+  }
+  VERIFICATION {
+    uuid id
+    string source
+    string task
+    bool pass
+    float confidence
+    jsonb checks
+    string model
+  }
+  PAYOUT {
+    uuid id
+    decimal amount
+    date scheduled_for
+    string approved_by
+    timestamp approved_at
+    string sender_batch_id
+    string paypal_batch_id
+    string status
+  }
+  AUDIT_EVENT {
+    uuid id
+    string actor
+    string action
+    jsonb detail
+    timestamp at
+  }
+  </pre></div>
+  <p><code>CREATOR.type</code> is <code>influencer</code> or <code>freelancer</code>. <code>SUBMISSION.kind</code> is <code>post_proof</code> or <code>invoice</code>. <code>VERIFICATION.source</code> is <code>user</code> (post checklist) or <code>ai</code>. <code>VERIFICATION.task</code> is <code>post_checklist</code>, <code>post_precheck</code> (AI suggestion only, never verifies on its own) or <code>invoice_match</code>. <code>confidence</code> and <code>model</code> are set only for AI rows. Contract extraction results live on <code>CONTRACT.extracted_terms</code>. <code>AUDIT_EVENT.actor</code> is <code>user</code>, <code>agent</code>, <code>ai</code> or <code>paypal</code>.</p>
+  <p>Bryntum events are <strong>not stored separately</strong>. The API derives them from assignments, client invoices and payouts, so there is one source of truth (see <a href="#bryntum">section 10</a>).</p>
+</section>
+
+<section id="states">
+  <h2>5. State machines</h2>
+  <h3>Assignment</h3>
+  <div class="diagram"><pre class="mermaid">
+stateDiagram-v2
+  [*] --> scheduled
+  scheduled --> submitted: proof or invoice uploaded
+  submitted --> verified: checklist complete or invoice matches
+  submitted --> held: checklist item missing or invoice mismatch
+  held --> submitted: new submission
+  held --> verified: user override with reason
+  verified --> awaiting_approval: payout created
+  awaiting_approval --> scheduled: Mei or Hana approves
+  awaiting_approval --> held: rejected with reason
+  awaiting_approval --> awaiting_approval: amount or date edited (R26)
+  scheduled --> awaiting_approval: amount or date edited (R26)
+  scheduled --> payout_sent: payout date reached or Send now
+  payout_sent --> paid: webhook PAYOUTS-ITEM.SUCCEEDED
+  payout_sent --> payout_failed: webhook FAILED or UNCLAIMED
+  payout_failed --> awaiting_approval: retry
+  paid --> [*]
+  </pre></div>
+  <h3>Client invoice</h3>
+  <div class="diagram"><pre class="mermaid">
+stateDiagram-v2
+  [*] --> draft
+  draft --> sent: send via PayPal
+  sent --> paid: webhook INVOICING.INVOICE.PAID
+  sent --> sent: due date changed (R19)
+  paid --> [*]
+  </pre></div>
+  <div class="callout"><p>The <strong>deposit</strong> invoice reaching <code>paid</code> sets <code>CAMPAIGN.deposit_cleared = true</code>. That flag is the payout lock in R15.</p></div>
+</section>
+
+<section id="flows">
+  <h2>6. Key flows</h2>
+
+  <h3>6.1 Contract to timeline (R1–R3)</h3>
+  <div class="diagram"><pre class="mermaid">
+sequenceDiagram
+  actor Mei
+  participant UI
+  participant API
+  participant Claude
+  participant DB
+  Mei->>UI: Upload contract PDF
+  UI->>API: POST /api/uploads (contract)
+  API->>Claude: PDF + extract_terms tool schema
+  Claude-->>API: terms JSON (fees, split, dates, deliverables)
+  API-->>UI: Draft terms for review
+  Mei->>UI: Correct fields, confirm
+  UI->>API: POST /api/campaigns (confirmed terms)
+  API->>DB: campaign, assignments, client invoices (draft)
+  API-->>UI: Campaign + derived events
+  UI->>UI: Scheduler and Calendar render
+  </pre></div>
+
+  <h3>6.2 Client deposit unlocks payouts (R5, R6, R15)</h3>
+  <div class="diagram"><pre class="mermaid">
+sequenceDiagram
+  actor Mei
+  participant API
+  participant PayPal
+  actor Client
+  participant WH as Webhook route
+  participant DB
+  Mei->>API: Send deposit invoice
+  API->>PayPal: POST /v2/invoicing/invoices
+  API->>PayPal: POST /v2/invoicing/invoices/{id}/send
+  PayPal-->>Client: Invoice email (sandbox)
+  Client->>PayPal: Pays invoice
+  PayPal->>WH: INVOICING.INVOICE.PAID
+  WH->>PayPal: POST /v1/notifications/verify-webhook-signature
+  WH->>DB: invoice.status = paid, campaign.deposit_cleared = true
+  WH->>DB: audit(actor=paypal)
+  Note over Mei,DB: Next UI poll shows the payout lock opened
+  </pre></div>
+
+  <h3>6.3 Influencer post verified and paid (R7–R9, R15–R17)</h3>
+  <div class="diagram"><pre class="mermaid">
+sequenceDiagram
+  actor Mei
+  participant API
+  participant Claude
+  participant Guard as Guardrail
+  participant PayPal
+  participant WH as Webhook route
+  Mei->>API: Upload post screenshot for assignment A
+  opt AI pre-check (R24, optional)
+    API->>Claude: Image + brief (structured output)
+    Claude-->>API: Suggested ticks + reason per item
+    API-->>Mei: Checklist pre-filled
+  end
+  Mei->>API: Confirm checklist (all items ticked)
+  API->>API: Save VERIFICATION source=user, assignment = verified
+  API->>Guard: canPay(A)
+  alt deposit not cleared, over fee, or already paid
+    Guard-->>API: deny + reason
+    API-->>Mei: Shows why payment is locked
+  else allowed so far
+    Guard-->>API: needs_approval
+    API-->>Mei: Payout added to approval queue
+    Mei->>API: Approve (Mei or Hana)
+    API->>API: payout.status = scheduled, scheduled_for = contract payout date
+    Note over Mei,API: Calendar and Scheduler show a scheduled payout block
+    Mei->>API: Send now (or daily cron on scheduled_for)
+    API->>Guard: canPay(A, approval) re-checked at send time
+    Guard-->>API: allow
+    API->>PayPal: POST /v1/payments/payouts (sender_batch_id = payout.id)
+    PayPal-->>API: batch PENDING
+    PayPal->>WH: PAYMENT.PAYOUTS-ITEM.SUCCEEDED
+    WH->>WH: assignment = paid
+  end
+  </pre></div>
+
+  <h3>6.4 Drag to reschedule (R19)</h3>
+  <div class="diagram"><pre class="mermaid">
+sequenceDiagram
+  actor Arif
+  participant Cal as Calendar
+  participant API
+  participant Agent
+  participant PayPal
+  Arif->>Cal: Drag post Tue to Fri
+  Cal->>API: PATCH /api/assignments/A (due_date)
+  API->>API: Move payout date, recompute campaign end
+  alt campaign end moved past balance due date
+    API->>Agent: Propose new balance due date
+    Agent-->>API: Proposal + reason
+    API-->>Arif: "Push balance invoice Nov 20 to Nov 23?"
+    Arif->>API: Approve
+    API->>PayPal: PUT /v2/invoicing/invoices/{id} (new due date)
+  end
+  API-->>Cal: Updated events (Scheduler updates too)
+  </pre></div>
+</section>
+
+<section id="ai">
+  <h2>7. AI design</h2>
+  <p>Two AI jobs are required for v1. Post verification is a human checklist; AI only offers an optional pre-check. Each AI job is a single Claude Haiku 5.5 call using structured outputs (<code>output_config.format</code>) validated by Zod. Forced tool calls are avoided because they return an error on Sonnet 5.5, which would break the fallback. The agent is a short tool-use loop and is a "Should".</p>
+  <div class="table-wrap"><table>
+    <tr><th>Job</th><th>Input</th><th>Output</th><th>Reqs</th></tr>
+    <tr><th colspan="4">Required for v1</th></tr>
+    <tr><td><strong>ContractExtractor</strong></td><td>Contract PDF</td><td>Client, total fee, deposit %, due dates, deliverables, per-creator fee and due date. Each field has a source quote from the PDF.</td><td>R1</td></tr>
+    <tr><td><strong>InvoiceMatcher</strong></td><td>Invoice PDF or image, assignment contract terms</td><td>Extracted payee, amount, currency, deliverable, with a confidence. The <strong>comparison against the contract is done in code</strong>, so a mismatch is never left to the model.</td><td>R11</td></tr>
+    <tr><th colspan="4">Optional ("Should")</th></tr>
+    <tr><td><strong>PostPreCheck</strong></td><td>Post screenshot, assignment brief</td><td>Suggested tick per checklist item (brand tag, hashtags, posting date) with a reason. Pre-fills the checklist; staff confirm.</td><td>R24</td></tr>
+    <tr><td><strong>Payment agent</strong></td><td>User instruction + campaign state</td><td>A plan of proposed actions, each run through the guardrail, then executed or queued for approval</td><td>R19, R22</td></tr>
+  </table></div>
+
+  <h3>Example: InvoiceMatcher</h3>
+<pre><code>// Haiku extracts (structured output):
+{ "payee": "Daniel Lim", "amount": 1200.00, "currency": "USD",
+  "deliverable": "2 × 30s product video edits", "confidence": 0.95 }
+
+// Code compares against the contract:
+{ "match": false,
+  "mismatches": [ { "field": "amount", "contracted": 1000.00, "invoiced": 1200.00 } ] }</code></pre>
+  <p>The model only reads the invoice. Deciding whether it matches is plain code, so the model cannot approve a wrong amount.</p>
+
+  <h3>Cost</h3>
+  <p>A one-page invoice or a short contract is a few thousand input tokens. At Haiku 5.5 rates ($0.10 / $0.50 per million), each check costs a small fraction of a cent, and all development, eval runs and the demo together should stay well under $1.</p>
+
+  <h3>Agent tools</h3>
+  <div class="table-wrap"><table>
+    <tr><th>Tool</th><th>Source</th><th>Effect</th></tr>
+    <tr><td><code>get_campaign_status</code></td><td>Ours</td><td>Read-only: assignments, verdicts, invoice and payout states</td></tr>
+    <tr><td><code>propose_payout(assignment_id)</code></td><td>Ours</td><td>Runs <code>canPay()</code>. Adds the payout to the approval queue, or returns the denial reason to the agent. It can never send money.</td></tr>
+    <tr><td><code>propose_invoice_due_date(invoice_id, date, reason)</code></td><td>Ours</td><td>Always queues for human approval</td></tr>
+    <tr><td>Invoice tools (list, get, send reminder)</td><td>PayPal MCP server (optional)</td><td>Standard invoicing actions. There are no payout tools in the MCP server.</td></tr>
+  </table></div>
+  <p>The agent never receives a raw "send payout" tool. Every money tool it can see goes through the guardrail.</p>
+
+  <h3>Evaluation</h3>
+  <p><code>eval/</code> holds 10 freelancer invoices (5 correct, 5 mismatched) and 3 sample contracts, each with the expected result. Add post screenshots only if PostPreCheck is built. <code>npm run eval</code> prints accuracy against the PRD targets. Run it after every prompt change.</p>
+</section>
+
+<section id="guardrails">
+  <h2>8. Payment guardrails</h2>
+  <p>One pure function, unit-tested. It runs when a payout is queued, when it is approved, and again at send time, because the situation can change in between (for example, a payout scheduled before a refund).</p>
+<pre><code>type PayDecision =
+  | { kind: "allow" }
+  | { kind: "needs_approval"; reason: string }
+  | { kind: "deny"; reason: string };
+
+export function canPay(a: Assignment, c: Campaign, v: Verification | null, p: Payout): PayDecision {
+  if (!c.depositCleared)          return { kind: "deny", reason: "Client deposit not received" };   // R15
+  if (a.status === "paid" || p.status === "payout_sent")
+                                  return { kind: "deny", reason: "Already paid" };                  // R16
+  if (!v?.pass)                   return { kind: "deny", reason: "Work not verified" };
+  if (p.amount > a.fee)           return { kind: "deny", reason: "Exceeds contracted fee" };        // R16
+  if (!p.approvedBy)              return { kind: "needs_approval", reason: "Waiting for approval" }; // R17
+  return { kind: "allow" };
+}</code></pre>
+  <p><strong>Edits (R26)</strong> go through <code>PATCH /api/payouts/{id}</code>, which rejects an amount above the contract fee or a date before today, requires a reason, writes an audit event with before and after values, and moves a <code>scheduled</code> payout back to <code>awaiting_approval</code> by clearing <code>approved_by</code>. A <code>payout_sent</code> or <code>paid</code> payout returns 409.</p>
+  <p>Unit tests cover every branch. Database writes for a payout run in a transaction that re-reads the assignment row with <code>SELECT … FOR UPDATE</code>, so two clicks can't both pass the "already paid" check.</p>
+</section>
+
+<section id="paypal">
+  <h2>9. PayPal integration</h2>
+  <div class="table-wrap"><table>
+    <tr><th>Purpose</th><th>Endpoint</th><th>Notes</th></tr>
+    <tr><td>Auth</td><td><code>POST /v1/oauth2/token</code></td><td>Client credentials. Cache the token until shortly before expiry.</td></tr>
+    <tr><td>Create invoice</td><td><code>POST /v2/invoicing/invoices</code></td><td>Invoice number = <code>OT-{campaign}-{DEP|BAL}</code> for idempotency.</td></tr>
+    <tr><td>Send invoice</td><td><code>POST /v2/invoicing/invoices/{id}/send</code></td><td>Deposit sent at campaign start. Balance stays draft until near the end.</td></tr>
+    <tr><td>Update due date</td><td><code>PUT /v2/invoicing/invoices/{id}</code></td><td>Full update. Confirm in week 1 that a sent, unpaid invoice can be updated (R19).</td></tr>
+    <tr><td>Pay creator</td><td><code>POST /v1/payments/payouts</code></td><td><code>sender_batch_id</code> = assignment ID, so retries cannot double-pay.</td></tr>
+    <tr><td>Payout status</td><td><code>GET /v1/payments/payouts/{batch_id}</code></td><td>Fallback if a webhook is missed.</td></tr>
+    <tr><td>Verify webhook</td><td><code>POST /v1/notifications/verify-webhook-signature</code></td><td>Every webhook is verified before it changes any state.</td></tr>
+  </table></div>
+  <h3>Webhook events subscribed</h3>
+  <div class="table-wrap"><table>
+    <tr><th>Event</th><th>Effect</th></tr>
+    <tr><td><code>INVOICING.INVOICE.PAID</code></td><td>Invoice → paid. If deposit, set <code>deposit_cleared</code>.</td></tr>
+    <tr><td><code>PAYMENT.PAYOUTS-ITEM.SUCCEEDED</code></td><td>Assignment → paid. Event turns green.</td></tr>
+    <tr><td><code>PAYMENT.PAYOUTS-ITEM.FAILED</code>, <code>…UNCLAIMED</code></td><td>Assignment → payout_failed. Event turns red, shown in the side panel.</td></tr>
+  </table></div>
+  <p>Webhook handling is idempotent: store each PayPal event ID and skip it if already processed.</p>
+</section>
+
+<section id="bryntum">
+  <h2>10. Bryntum integration</h2>
+  <h3>Mapping our data to Bryntum</h3>
+  <div class="table-wrap"><table>
+    <tr><th>Bryntum concept</th><th>Comes from</th></tr>
+    <tr><td>Resource (Scheduler row)</td><td>Each creator on the campaign, plus one "Client" row</td></tr>
+    <tr><td>Event: post due / deliverable due</td><td><code>ASSIGNMENT.due_date</code>, colour by creator type and status</td></tr>
+    <tr><td>Event: client invoice</td><td><code>CLIENT_INVOICE.due_date</code> on the Client row</td></tr>
+    <tr><td>Event: payout</td><td><code>PAYOUT.scheduled_for</code> on the creator's row. Shown as "awaiting approval", "scheduled" or "sent" by status</td></tr>
+    <tr><td>Event colour</td><td>Derived from status: overdue or flagged → red; paid → green (see <a href="prd.html#views">PRD colour key</a>)</td></tr>
+  </table></div>
+  <h3>Sharing data between the two views</h3>
+  <ul>
+    <li><strong>Plan A:</strong> one shared project or event store instance passed to both the Scheduler and the Calendar, so an edit in one shows in the other immediately (R14).</li>
+    <li><strong>Plan B:</strong> both views load from <code>GET /api/campaigns/{id}/events</code> and reload when either view saves a change.</li>
+    <li>Using two Bryntum products in one app may require their "thin" packages to avoid duplicate core code. Check Bryntum's docs on combining products before installing, in week 1.</li>
+  </ul>
+  <h3>Drag handling</h3>
+  <p>Only post and deliverable events are draggable. Invoice and payout events are read-only, because their dates change only through the flow in 6.4. A drop is saved through <code>PATCH /api/assignments/{id}</code>. If the server rejects it, the event snaps back.</p>
+</section>
+
+<section id="repo">
+  <h2>11. Repo structure</h2>
+<pre><code>on-track/
+├── docs/                      # these HTML docs
+├── src/
+│   ├── app/
+│   │   ├── page.tsx                       # campaign list
+│   │   ├── campaigns/[id]/page.tsx        # Team / Calendar tabs + side panel
+│   │   └── api/
+│   │       ├── campaigns/                 # CRUD + /events (Bryntum feed)
+│   │       ├── uploads/                   # contract, proof, invoice
+│   │       ├── assignments/[id]/          # PATCH due date, POST pay/approve/hold
+│   │       ├── invoices/[id]/             # send, update due date
+│   │       ├── payouts/[id]/              # PATCH amount/date (R26), approve, send now
+│   │       ├── payouts/run-due/           # daily cron: send approved payouts that are due
+│   │       ├── agent/                     # agent command endpoint
+│   │       └── webhooks/paypal/           # verified webhook handler
+│   ├── components/
+│   │   ├── TeamScheduler.tsx
+│   │   ├── CampaignCalendar.tsx
+│   │   └── EventSidePanel.tsx
+│   ├── lib/
+│   │   ├── ai/        # contractExtractor, invoiceMatcher, postPreCheck (optional), agent
+│   │   ├── paypal/    # client, invoicing, payouts, webhooks
+│   │   ├── guardrails.ts
+│   │   ├── events.ts  # DB rows → Bryntum events
+│   │   └── audit.ts
+│   └── db/            # Drizzle schema, migrations, seed
+├── eval/              # invoices, contracts, expected.json
+├── tests/             # guardrails + state transition tests
+├── render.yaml
+├── LICENSE            # MIT
+└── README.md          # setup, sandbox accounts, run instructions</code></pre>
+</section>
+
+<section id="config">
+  <h2>12. Config &amp; deploy</h2>
+  <h3>Environment variables</h3>
+<pre><code>DATABASE_URL=
+ANTHROPIC_API_KEY=
+AI_MODEL=claude-haiku-5-5        # fallback: claude-sonnet-5-5
+PAYPAL_CLIENT_ID=
+PAYPAL_CLIENT_SECRET=
+PAYPAL_API_BASE=https://api-m.sandbox.paypal.com
+PAYPAL_WEBHOOK_ID=
+CRON_SECRET=                     # protects /api/payouts/run-due
+APP_URL=</code></pre>
+  <div class="callout danger"><p>Never commit <code>.env</code>. The repo must be public for submission, so add <code>.env*</code> to <code>.gitignore</code> before the first commit and check <code>git status</code> before every push.</p></div>
+  <h3>Deploy</h3>
+  <ol class="steps">
+    <li><code>render.yaml</code> defines one web service, one Postgres database and one daily Cron Job that calls <code>/api/payouts/run-due</code> with <code>CRON_SECRET</code>.</li>
+    <li>On deploy: run Drizzle migrations, then the seed script (roster, one demo campaign template).</li>
+    <li>Register the Render URL + <code>/api/webhooks/paypal</code> in the PayPal developer dashboard and copy the webhook ID into <code>PAYPAL_WEBHOOK_ID</code>.</li>
+    <li>Add a "Reset demo" button (dev flag) that reseeds, so judges and the video always start clean.</li>
+  </ol>
+  <div class="callout warn"><p>Check Render Postgres free-tier limits (it has historically expired after a set period). Use the $50 credits for a paid instance if needed so the demo survives judging.</p></div>
+</section>
+
+<section id="plan">
+  <h2>13. Build plan (~35 hours)</h2>
+  <div class="table-wrap"><table>
+    <tr><th>Week</th><th>Tasks</th><th>Hours</th></tr>
+    <tr><td><strong>1</strong><br>Oct 12–18</td><td>
+      PayPal developer account + sandbox business/personal accounts. Script: create + send invoice, send payout (confirms Q1).<br>
+      Next.js + Tailwind + shadcn + Drizzle skeleton, seed data.<br>
+      Install Bryntum Scheduler + Calendar trials, render both on seed data, try shared store (Plan A).<br>
+      Ask the Bryntum licence question on Discord (Q2). Set up the APIMatic plugin in Claude Code.
+    </td><td>8</td></tr>
+    <tr><td><strong>2</strong><br>Oct 19–25</td><td>
+      ContractExtractor + review form (R1–R4). Check Haiku 5.5 accuracy on the eval set (Q7).<br>
+      Post checklist (R7–R9) + InvoiceMatcher (R10–R12). Build the eval set and script.<br>
+      <code>canPay()</code> + unit tests (R15–R17). Approval queue + scheduled payouts with Send now (R17, R25). Invoicing + payouts wired to actions. Webhook handler via tunnel (R5, R6).
+    </td><td>9</td></tr>
+    <tr><td><strong>3</strong><br>Oct 26–Nov 1</td><td>
+      Event colours, side panel, polling (R13, R14, R18).<br>
+      Drag-to-reschedule + invoice due-date proposal (R19). Audit log (R21).<br>
+      Deploy to Render, register webhooks, run the full demo on the hosted URL.
+    </td><td>9</td></tr>
+    <tr><td><strong>4</strong><br>Nov 2–8</td><td>
+      Hit the eval targets. Fix edge cases. Reset-demo button.<br>
+      README with setup steps, sandbox test accounts and screenshots. MIT licence.<br>
+      If time allows: AI post pre-check (R24), campaign summary (R20), agent command bar (R22).
+    </td><td>7</td></tr>
+    <tr><td><strong>Submit</strong><br>Nov 9–11</td><td>
+      Record the video using the PRD demo script, edit to ≤ 2:50, upload to YouTube.<br>
+      Write the Devpost description and tools section. Submit Nov 11.
+    </td><td>5</td></tr>
+  </table></div>
+  <p><strong>Cut order if behind:</strong> R24 AI post pre-check → R22 agent command bar → R20 summary → Plan A shared store (fall back to Plan B) → daily cron sending (keep Send now only). Never cut the guardrails or the webhook-driven updates; they are the core of the story.</p>
+</section>
+
+<footer>On-Track architecture · v0.1 draft · Oct 12, 2026</footer>
+</main>
+</div>
+
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.4.0/dist/mermaid.esm.min.mjs";
+  const forced = document.documentElement.dataset.theme;
+  const dark = forced ? forced === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "neutral", securityLevel: "strict", fontFamily: "Inter, system-ui, sans-serif" });
+</script>
+</body>
+</html>

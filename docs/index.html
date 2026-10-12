@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>On-Track Docs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="topbar"><div class="topbar-inner">
+  <a class="brand" href="index.html">On<span>-</span>Track</a>
+  <nav>
+    <a href="index.html" aria-current="page">Overview</a>
+    <a href="prd.html">PRD</a>
+    <a href="market-research.html">Market research</a>
+    <a href="architecture.html">Tech stack &amp; architecture</a>
+  </nav>
+</div></div>
+
+<main style="max-width:880px;margin:0 auto;padding:48px 16px 80px">
+  <div class="eyebrow">PayPal AI Hackathon 2026 · Bryntum track</div>
+  <h1>On-Track</h1>
+  <p class="lede">Keep every campaign, creator and payment on track. An AI payment desk for marketing agencies that bill clients, pay influencers when their post goes live, and pay freelancers against signed contracts, all on one shared timeline and calendar.</p>
+  <div class="meta">
+    <span>Deadline: Nov 12, 2026 · 12:00pm PST</span>
+    <span>Solo · ~35 hours</span>
+    <span>Status: Draft</span>
+  </div>
+
+  <div class="hero-links">
+    <a href="prd.html"><div class="card">
+      <h4>Product Requirements (PRD)</h4>
+      <p>Problem, personas, goals, success metrics, non-goals, numbered requirements, demo script and open questions.</p>
+    </div></a>
+    <a href="market-research.html"><div class="card">
+      <h4>Market research</h4>
+      <p>Existing influencer and payout tools, similar hackathon projects, feature comparison and positioning.</p>
+    </div></a>
+    <a href="architecture.html"><div class="card">
+      <h4>Tech stack &amp; architecture</h4>
+      <p>Stack choices, system diagram, data model, payment flows, AI design, guardrails, webhooks and the weekly build plan.</p>
+    </div></a>
+  </div>
+
+  <section style="margin-top:40px">
+    <h2>One-line pitch</h2>
+    <div class="callout"><p><strong>Client money in, creator money out, nothing paid early.</strong> On-Track reads the contract, invoices the client through PayPal, checks each freelancer invoice against the contract with AI, gives staff a quick checklist for each influencer post, and only releases PayPal Payouts once the client has paid and the work is verified.</p></div>
+  </section>
+
+  <section>
+    <h2>Prize targets</h2>
+    <div class="table-wrap"><table>
+      <tr><th>Prize</th><th>Why we qualify</th></tr>
+      <tr><td>1st / 2nd / 3rd overall</td><td>Real three-way money flow, working agent, polished timeline UI</td></tr>
+      <tr><td>Best Use of PayPal + AI</td><td>Invoicing, Payouts and Webhooks all driven by AI decisions</td></tr>
+      <tr><td>Best Use of Agentic Commerce</td><td>Agent releases payouts and reschedules invoices, within code-enforced guardrails</td></tr>
+      <tr><td>Best Use of Bryntum (3 × $1k)</td><td>Scheduler + Calendar sharing one data store; drag-to-reschedule triggers PayPal changes</td></tr>
+      <tr><td>Best Use of APIMatic (3 × $1k)</td><td>PayPal integration built with the APIMatic Context Plugin in Claude Code</td></tr>
+      <tr><td>Best Use of Render</td><td>Hosted on Render (web service + Postgres)</td></tr>
+    </table></div>
+  </section>
+
+  <footer>On-Track · docs v0.1 · Oct 12, 2026</footer>
+</main>
+</body>
+</html>

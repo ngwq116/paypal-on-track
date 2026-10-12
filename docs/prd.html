@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>On-Track PRD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="topbar"><div class="topbar-inner">
+  <a class="brand" href="index.html">On<span>-</span>Track</a>
+  <nav>
+    <a href="index.html">Overview</a>
+    <a href="prd.html" aria-current="page">PRD</a>
+    <a href="market-research.html">Market research</a>
+    <a href="architecture.html">Tech stack &amp; architecture</a>
+  </nav>
+</div></div>
+
+<div class="layout">
+<aside class="toc">
+  <p>Contents</p>
+  <ol>
+    <li><a href="#problem">1. Problem</a></li>
+    <li><a href="#users">2. Users</a></li>
+    <li><a href="#goals">3. Goals</a></li>
+    <li><a href="#metrics">4. Success metrics</a></li>
+    <li><a href="#non-goals">5. Non-goals</a></li>
+    <li><a href="#requirements">6. Requirements</a></li>
+    <li><a href="#views">7. Views &amp; colour key</a></li>
+    <li><a href="#demo">8. Demo script</a></li>
+    <li><a href="#assumptions">9. Assumptions &amp; dependencies</a></li>
+    <li><a href="#risks">10. Risks</a></li>
+    <li><a href="#questions">11. Open questions</a></li>
+    <li><a href="#rollout">12. Rollout</a></li>
+  </ol>
+</aside>
+
+<main>
+<header class="doc-head">
+  <div class="eyebrow">Product Requirements Document</div>
+  <h1>On-Track</h1>
+  <p class="lede">An AI payment desk for marketing agencies: collect from clients, pay influencers when posts go live, pay freelancers against signed contracts. Everything is shown on one shared timeline and calendar.</p>
+  <div class="meta">
+    <span>Author: ngwanqin</span>
+    <span>Date: Oct 12, 2026</span>
+    <span>Status: Draft</span>
+    <span>Ships: Nov 12, 2026 (hackathon deadline)</span>
+  </div>
+</header>
+
+<section id="problem">
+  <h2>1. Problem</h2>
+  <p>A marketing agency sits in the middle of every campaign's money. It collects fees from the client, pays a roster of influencers and KOLs once their posts go live, and pays freelancers whose amounts were fixed when the contract was signed. Today that is tracked across spreadsheets, chat threads, screenshots and bank transfers.</p>
+  <p>That causes three expensive failures:</p>
+  <ul>
+    <li><strong>Paying out before getting paid.</strong> Creators are paid while the client deposit is still outstanding, so the agency carries the cash risk.</li>
+    <li><strong>Slow, unpredictable creator payments.</strong> Someone has to check every post (brand tagged, hashtags, posting date) by hand and chase approvals before releasing payment, so creators wait weeks.</li>
+    <li><strong>Invoice mismatches slipping through.</strong> Freelancer invoices that differ from the contracted amount are only caught if someone cross-checks the contract.</li>
+  </ul>
+
+  <h3>Evidence (online research, Oct 12, 2026)</h3>
+  <div class="table-wrap"><table>
+    <tr><th>Finding</th><th>Source</th></tr>
+    <tr><td>Clients on net 30–120 terms often take about <strong>65 days</strong> to pay; large companies keep moving toward <strong>120+ day</strong> terms.</td><td><a href="https://izea.com/resources/izeax-payment-changes-coming-may-2019/">IZEA</a></td></tr>
+    <tr><td>IZEA reported <strong>floating millions of dollars</strong> to creators before getting paid by its agency and brand customers.</td><td><a href="https://izea.com/resources/izeax-payment-changes-coming-may-2019/">IZEA</a></td></tr>
+    <tr><td>Creators are typically paid <strong>60–90 days</strong> after delivery, and payments slip when agencies wait on their own clients.</td><td><a href="https://www.thedrum.com/industry-insight/if-creators-are-the-future-of-advertising-why-cant-they-get-paid">The Drum</a></td></tr>
+    <tr><td>Up to <strong>87% of creators</strong> have been paid late, short-paid or not paid at least once; <strong>41%</strong> raised their rates to compensate.</td><td><a href="https://campaignlive.com/article/new-campaign-report-reveals-why-creators-arent-getting-paid-time/1930824">Campaign</a> (Tipalti survey of 750 creators)</td></tr>
+    <tr><td>In 2025, influencer agencies reported major brands failing to clear dues for over a year; some creators refuse new work until paid.</td><td><a href="https://www.storyboard18.com/amp/brand-makers/payment-delays-plague-influencer-marketing-agencies-as-major-brands-lag-behind-77033.htm">Storyboard18</a></td></tr>
+    <tr><td>Some agencies now demand <strong>100% client payment in advance</strong> for influencer campaigns to avoid fronting cash.</td><td><a href="https://www.socialsamosa.com/2016/12/agency-influencers-payment-cycle-issues">Social Samosa</a></td></tr>
+  </table></div>
+  <div class="callout warn"><p>Sources are trade press and vendor blogs (IZEA and payment vendors benefit from the problem being real), so treat the numbers as indicative. A quote from a Malaysian agency or creator would still strengthen the video.</p></div>
+  <p>Existing tools pay creators for <em>brands</em>, but none protects the agency in the middle. See <a href="market-research.html">market research</a>.</p>
+</section>
+
+<section id="users">
+  <h2>2. Users</h2>
+  <p><strong>On-Track is an internal tool for the agency only.</strong> Every user works at the agency.</p>
+  <div class="grid">
+    <div class="card"><h4>Mei, finance &amp; ops lead</h4><p>Runs 4–6 campaigns at once for a small Kuala Lumpur agency. At month end she reconciles client payments against 20+ creator payouts in a spreadsheet, and collects post screenshots and invoices from WhatsApp and email. <strong>Primary user.</strong></p></div>
+    <div class="card"><h4>Arif, account manager</h4><p>Owns the client relationship and the campaign calendar. Needs to see at a glance which posts are due this week and whether a late post will delay the client's final invoice.</p></div>
+    <div class="card"><h4>Hana, agency director</h4><p>Signs off payments. Wants one approval queue showing what is about to be paid, to whom, why, and whether the client has paid, so she can approve in batches.</p></div>
+  </div>
+
+  <h3>Who is not a user</h3>
+  <p>These parties never log into On-Track. The agency acts on their behalf, and they only see the PayPal side.</p>
+  <div class="table-wrap"><table>
+    <tr><th>Party</th><th>Relationship</th><th>What they see</th></tr>
+    <tr><td>Influencer / KOL</td><td>Payee</td><td>Sends post proof to the agency as they do today (WhatsApp, email). Receives a PayPal payout.</td></tr>
+    <tr><td>Freelancer</td><td>Payee</td><td>Sends an invoice to the agency as they do today. Receives a PayPal payout.</td></tr>
+    <tr><td>Client (brand)</td><td>Payer</td><td>Receives PayPal invoices and pays them.</td></tr>
+  </table></div>
+</section>
+
+<section id="goals">
+  <h2>3. Goals</h2>
+  <ul>
+    <li><strong>G1. Never pay out money the agency hasn't received.</strong> Creator payouts on a campaign are locked until the client's deposit clears.</li>
+    <li><strong>G2. Pay creators on a clear schedule as soon as work is verified and approved,</strong> not 60–90 days later.</li>
+    <li><strong>G3. Catch invoice and deliverable problems automatically,</strong> before money moves.</li>
+    <li><strong>G4. One shared picture of the campaign:</strong> who owes what, who is owed what, and when, in both a team timeline and a calendar.</li>
+    <li><strong>G5. Win the hackathon.</strong> A working, hosted, end-to-end demo with a clear video.</li>
+  </ul>
+</section>
+
+<section id="metrics">
+  <h2>4. Success metrics</h2>
+  <p>Baselines come from the online evidence in <a href="#problem">section 1</a> where available. Those marked <em>assumed</em> are estimates.</p>
+  <div class="table-wrap"><table>
+    <tr><th>Goal</th><th>Metric</th><th>Baseline</th><th>Target (demo, by Nov 8)</th></tr>
+    <tr><td>G1</td><td>Payouts released while the client deposit is unpaid</td><td>Common: agencies front creator pay (IZEA)</td><td><strong>0</strong>, enforced in code and shown in the demo</td></tr>
+    <tr><td>G2</td><td>Time from post delivered to payout scheduled</td><td>Creators paid <strong>60–90 days</strong> after delivery (The Drum)</td><td><strong>Same day</strong>: verified and approved payouts appear on the schedule immediately and are sent on their payout date</td></tr>
+    <tr><td>G2</td><td>Time to verify an influencer post</td><td>Several minutes <em>(assumed: open post, compare to brief in chat)</em></td><td><strong>&lt; 20 seconds</strong> with the checklist</td></tr>
+    <tr><td>G3</td><td>Freelancer invoice check time</td><td>~10 min per invoice <em>(assumed: manual contract lookup)</em></td><td><strong>&lt; 30 seconds</strong>, AI result with reasons</td></tr>
+    <tr><td>G3</td><td>AI accuracy on the seeded test set</td><td>n/a</td><td>Invoice check: <strong>5 of 5</strong> mismatches caught, 0 false holds on 5 correct invoices. Contract extraction: every field correct on <strong>3 of 3</strong> sample contracts</td></tr>
+    <tr><td>G4</td><td>Scheduler ↔ Calendar consistency</td><td>n/a</td><td>A change in one view appears in the other <strong>without reload</strong></td></tr>
+    <tr><td>G5</td><td>Demo completeness</td><td>n/a</td><td>All 6 demo steps run end-to-end on PayPal sandbox with <strong>no manual DB edits</strong>; video <strong>≤ 2:50</strong></td></tr>
+  </table></div>
+</section>
+
+<section id="non-goals">
+  <h2>5. Non-goals (this release)</h2>
+  <ul>
+    <li><strong>Creator discovery or matching</strong> from the influencer pool. The roster is seed data.</li>
+    <li><strong>Fully automatic post verification.</strong> A person confirms every post (R8). AI only pre-fills the checklist (R24).</li>
+    <li><strong>Fetching posts from Instagram or TikTok APIs.</strong> Proof is a screenshot or link that agency staff upload.</li>
+    <li><strong>Multi-agency accounts, login and roles.</strong> One agency, one demo user.</li>
+    <li><strong>Multiple currencies, FX, tax or withholding.</strong> USD only (see <a href="#questions">Q4</a>).</li>
+    <li><strong>Contract drafting or e-signing.</strong> On-Track reads an already-signed contract.</li>
+    <li><strong>Portals or logins for creators, freelancers or clients.</strong> On-Track is agency-only. Outside parties interact only through PayPal payouts and invoices.</li>
+    <li><strong>Gantt view and mobile app.</strong></li>
+  </ul>
+</section>
+
+<section id="requirements">
+  <h2>6. Requirements</h2>
+  <p><span class="pill must">Must</span> required for the demo. <span class="pill should">Should</span> build if on schedule. <span class="pill cut">Later</span> out of scope unless time is left in week 4.</p>
+
+  <h3>Campaign setup</h3>
+  <div class="table-wrap"><table>
+    <tr><th>ID</th><th>Requirement</th><th>Priority</th></tr>
+    <tr><td class="id">R1</td><td>The user can upload a signed client contract (PDF), and the system extracts the client, total fee, deposit and balance split, due dates, deliverables, and each creator's fee and due date.</td><td><span class="pill must">Must</span></td></tr>
+    <tr><td class="id">R2</td><td>The user can review and correct every extracted field before the campaign is created, including each creator's fee and payout date. Totals and margin update as fields change. Nothing is saved without confirmation.</td><td><span class="pill must">Must</span></td></tr>
+    <tr><td class="id">R3</td><td>Confirming the contract creates the campaign and fills the Scheduler and Calendar with every deliverable, invoice and payout date.</td><td><span class="pill must">Must</span></td></tr>
+    <tr><td class="id">R4</td><td>The user can assign creators from the roster (influencer or freelancer, with PayPal email) to the campaign.</td><td><span class="pill must">Must</span></td></tr>
+  </table></div>
+
+  <h3>Client billing</h3>
+  <div class="table-wrap"><table>
+    <tr><th>ID</th><th>Requirement</th><th>Priority</th></tr>
+    <tr><td class="id">R5</td><td>The user can send the deposit invoice to the client through PayPal in one click. The balance invoice is created as a draft with its due date.</td><td><span class="pill must">Must</span></td></tr>
+    <tr><td class="id">R6</td><td>When the client pays, the campaign updates automatically (no refresh, no manual marking) and creator payouts unlock.</td><td><span class="pill must">Must</span></td></tr>
+  </table></div>
+
+  <h3>Influencer payouts</h3>
+  <div class="table-wrap"><table>
+    <tr><th>ID</th><th>Requirement</th><th>Priority</th></tr>
+    <tr><td class="id">R7</td><td>Agency staff can upload an influencer's post proof (screenshot, plus optional link) received from the creator, against that creator's assignment.</td><td><span class="pill must">Must</span></td></tr>
+    <tr><td class="id">R8</td><td>Agency staff verify the post with a checklist built from the brief: brand tagged, required hashtags present, posted inside the agreed date window. All items ticked marks the post verified. Any item left unticked holds it, with a note on what is missing.</td><td><span class="pill must">Must</span></td></tr>
+    <tr><td class="id">R9</td><td>A verified post creates a payout of the contracted fee, waiting for approval (R17) and subject to the guardrails in R15–R16.</td><td><span class="pill must">Must</span></td></tr>
+    <tr><td class="id">R24</td><td>AI pre-check: one click reads the screenshot and pre-ticks the checklist with a reason per item. Staff still confirm before the post counts as verified.</td><td><span class="pill should">Should</span></td></tr>
+  </table></div>
+
+  <h3>Freelancer payouts</h3>
+  <div class="table-wrap"><table>
+    <tr><th>ID</th><th>Requirement</th><th>Priority</th></tr>
+    <tr><td class="id">R10</td><td>Agency staff can upload a freelancer's invoice (PDF or image) received by email or chat, against that freelancer's assignment.</td><td><span class="pill must">Must</span></td></tr>
+    <tr><td class="id">R11</td><td>The system compares the invoice to the contract (amount, payee, deliverable) and flags any mismatch with the contracted and invoiced values side by side.</td><td><span class="pill must">Must</span></td></tr>
+    <tr><td class="id">R12</td><td>A matching invoice can be paid by PayPal payout. A mismatched invoice is held until a corrected invoice arrives or the user overrides with a written reason.</td><td><span class="pill must">Must</span></td></tr>
+  </table></div>
+
+  <h3>Views</h3>
+  <div class="table-wrap"><table>
+    <tr><th>ID</th><th>Requirement</th><th>Priority</th></tr>
+    <tr><td class="id">R13</td><td>The <strong>Team</strong> view (Scheduler) shows one row per creator plus a Client row, with every deliverable, invoice and payout as a colour-coded block (see <a href="#views">colour key</a>).</td><td><span class="pill must">Must</span></td></tr>
+    <tr><td class="id">R14</td><td>The <strong>Calendar</strong> view shows the same events in month and week layouts. Edits in either view appear in the other immediately.</td><td><span class="pill must">Must</span></td></tr>
+    <tr><td class="id">R18</td><td>Clicking any event opens a side panel with its details, AI verdict and reasons, PayPal status, and the allowed actions (Pay, Hold, Approve, Resend).</td><td><span class="pill must">Must</span></td></tr>
+    <tr><td class="id">R19</td><td>Dragging a deliverable to a new date moves that creator's payout date. If it pushes past the campaign end, the agent proposes a new due date for the client's balance invoice, which the user can approve to update the PayPal invoice.</td><td><span class="pill must">Must</span></td></tr>
+    <tr><td class="id">R20</td><td>A campaign summary shows client billed and received, creators paid and owed, and margin.</td><td><span class="pill should">Should</span></td></tr>
+  </table></div>
+
+  <h3>Guardrails, agent and audit</h3>
+  <div class="table-wrap"><table>
+    <tr><th>ID</th><th>Requirement</th><th>Priority</th></tr>
+    <tr><td class="id">R15</td><td>No payout is sent on a campaign whose client deposit has not cleared. This is enforced in code, not left to the AI.</td><td><span class="pill must">Must</span></td></tr>
+    <tr><td class="id">R16</td><td>No payout may exceed the contracted fee for that assignment, and an assignment can be paid only once.</td><td><span class="pill must">Must</span></td></tr>
+    <tr><td class="id">R17</td><td>Every payout needs approval by a person (Mei or Hana) before it is scheduled. The approval queue shows payee, amount, contract fee, verification result and client deposit status. Approvals can be done one by one or in a batch.</td><td><span class="pill must">Must</span></td></tr>
+    <tr><td class="id">R25</td><td>An approved payout appears as a scheduled block on its payout date (from the contract) in both views and is sent through PayPal automatically on that date. Staff can also choose <strong>Send now</strong>.</td><td><span class="pill must">Must</span></td></tr>
+    <tr><td class="id">R26</td><td>Staff can edit a payout's <strong>amount</strong> and <strong>payout date</strong> any time before it is sent. The amount can be lowered but never raised above the contract fee (raising it needs an amended contract). The date can't be in the past. A reason is required and saved to the audit log. Editing a payout that is already approved sends it back for approval. Sent payouts can't be edited.</td><td><span class="pill must">Must</span></td></tr>
+    <tr><td class="id">R21</td><td>Every AI verdict, approval, payout and invoice change is recorded in an audit log with who/what made it and why.</td><td><span class="pill must">Must</span></td></tr>
+    <tr><td class="id">R22</td><td>The user can give the agent a plain-language instruction such as "pay every creator with a verified post on this campaign". The agent shows its plan and the guardrail result for each item before executing.</td><td><span class="pill should">Should</span></td></tr>
+    <tr><td class="id">R23</td><td>The system suggests creators from the roster for a new brief.</td><td><span class="pill cut">Later</span></td></tr>
+  </table></div>
+</section>
+
+<section id="views">
+  <h2>7. Views &amp; colour key</h2>
+  <p>Both views read the same events. The colour reflects the event's type and state, and is the same in both views.</p>
+  <div class="legend">
+    <span style="--c:#6b46c1">Post due (influencer)</span>
+    <span style="--c:#c2620a">Deliverable due (freelancer)</span>
+    <span style="--c:#1e63b8">Client invoice due or paid</span>
+    <span style="--c:#7fbf8f">Payout scheduled (approved)</span>
+    <span style="--c:#1f7a3d">Payout sent</span>
+    <span style="--c:#b42318">Overdue or flagged by AI</span>
+  </div>
+  <div class="grid">
+    <div class="card"><h4>Team (Bryntum Scheduler)</h4><p>For Mei. Rows are people. Answers "who is blocked, who is owed, who has been paid".</p></div>
+    <div class="card"><h4>Calendar (Bryntum Calendar)</h4><p>For Arif. Month and week layouts. Answers "what is due this week and what moves if a post slips".</p></div>
+  </div>
+</section>
+
+<section id="demo">
+  <h2>8. Demo script (≤ 2:50)</h2>
+  <ol class="steps">
+    <li><strong>Contract in, timeline out (0:00–0:30).</strong> Upload a client contract. The AI extracts the terms, the user confirms, and both views fill with the campaign.</li>
+    <li><strong>Client pays (0:30–0:55).</strong> Send the deposit invoice and pay it in the PayPal sandbox. The webhook arrives and the payout lock opens on screen.</li>
+    <li><strong>Influencer verified and paid (0:55–1:25).</strong> Upload the post screenshot the creator sent and tick the checklist (or let the AI pre-check fill it, if built). The payout lands in the approval queue. Approve it: it appears on the calendar as scheduled. Click Send now: the PayPal payout goes out and the block turns green.</li>
+    <li><strong>Freelancer mismatch caught (1:25–1:55).</strong> A $1,200 invoice against a $1,000 contract is flagged and held. The corrected invoice is paid.</li>
+    <li><strong>Drag to reschedule (1:55–2:25).</strong> Drag a post from Tuesday to Friday in the Calendar. The agent moves the payout and proposes moving the client's balance invoice. Approve, and the PayPal invoice updates.</li>
+    <li><strong>Close on the numbers (2:25–2:50).</strong> Campaign summary: billed, received, paid out, margin, and the audit log.</li>
+  </ol>
+</section>
+
+<section id="assumptions">
+  <h2>9. Assumptions &amp; dependencies</h2>
+  <ul>
+    <li>All money moves in the <strong>PayPal sandbox</strong>. Creators and the client are sandbox accounts.</li>
+    <li>The sandbox business account can use <strong>Payouts</strong> and <strong>Invoicing</strong> (verify in week 1, <a href="#questions">Q1</a>).</li>
+    <li><strong>Bryntum Scheduler and Calendar</strong> trial licences cover the build and judging period (<a href="#questions">Q2</a>).</li>
+    <li><strong>Claude Haiku 5.5</strong> can read contract PDFs and invoice PDFs or images reliably enough for the seeded demo data. If it can't, switching to Claude Sonnet 5.5 is a one-setting change (<a href="#questions">Q7</a>).</li>
+    <li>Contracts follow one template for the demo. Arbitrary contract formats are not required to work.</li>
+  </ul>
+</section>
+
+<section id="risks">
+  <h2>10. Risks</h2>
+  <div class="table-wrap"><table>
+    <tr><th>Risk</th><th>Impact</th><th>Mitigation</th></tr>
+    <tr><td>Sandbox Payouts not enabled or behaves differently</td><td>Core demo step fails</td><td>Test a payout from a script on day 1. Fallback: pay through a PayPal order captured from the agency account.</td></tr>
+    <tr><td>Webhooks need a public URL</td><td>Can't show automatic updates locally</td><td>Deploy to Render early (week 3). Use a tunnel during development.</td></tr>
+    <tr><td>Bryntum trial expires during judging</td><td>Hosted demo breaks or shows a watermark</td><td>Ask on the PayPal Discord in week 1. Also keep local run instructions in the README.</td></tr>
+    <tr><td>AI misreads a contract or invoice during recording</td><td>Weak demo</td><td>Tune on the seeded test set. Contract fields are always reviewed (R2). Every payout is approved by a person, and the approval queue shows the AI result next to the contract, so a misread is caught before money moves. Switch to Sonnet 5.5 if Haiku falls short.</td></tr>
+    <tr><td>Scope creep (solo, 35 hours)</td><td>Unfinished submission</td><td>Non-goals above. "Should" items only after all "Must" items work end-to-end.</td></tr>
+  </table></div>
+</section>
+
+<section id="questions">
+  <h2>11. Open questions &amp; decisions</h2>
+  <div class="table-wrap"><table>
+    <tr><th>#</th><th>Question</th><th>Status</th><th>Answer / next step</th></tr>
+    <tr><td class="id">Q1</td><td>Can the sandbox business account send Payouts, and can sandbox personal accounts receive them?</td><td><span class="pill should">Docs say yes, test pending</span></td><td>PayPal docs: the sandbox is created automatically with a business account (sends payouts) and a personal account (receives). Activation by PayPal support is only needed in production (<a href="https://developer.paypal.com/payouts/use-payouts/set-up">PayPal Payouts setup</a>). Confirm with a real sandbox payout once the developer account and API keys exist. Due Oct 15.</td></tr>
+    <tr><td class="id">Q2</td><td>Will Bryntum trial packages keep working for judges after the trial ends?</td><td><span class="pill should">Open, lower priority</span></td><td>A video alone does not meet the rules: judges must be able to run the project (setup instructions) or open a hosted URL. Judges installing from the repo will use the Bryntum trial packages, so ask on the PayPal Discord whether they keep working after 45 days. Due Oct 16.</td></tr>
+    <tr><td class="id">Q3</td><td>Does the PayPal Agent Toolkit / MCP server include Payouts?</td><td><span class="pill must">Answered</span></td><td><strong>No.</strong> The PayPal MCP server has orders, 7 invoice tools, subscriptions, disputes, catalog, shipment tracking and reporting, but no payouts. Payouts use the REST API directly (<code>POST /v1/payments/payouts</code>). Source: <a href="https://github.com/paypal/AI-Toolkit/blob/HEAD/skills/paypal-best-practices/references/mcp-tools.md">PayPal AI-Toolkit tool inventory</a>.</td></tr>
+    <tr><td class="id">Q4</td><td>Demo currency?</td><td><span class="pill must">Decided</span></td><td><strong>USD.</strong></td></tr>
+    <tr><td class="id">Q5</td><td>When does a payout need a human?</td><td><span class="pill must">Decided</span></td><td><strong>Always.</strong> Every payout is approved by a person before it is scheduled (R17). No auto-approve limit or confidence threshold.</td></tr>
+    <tr><td class="id">Q6</td><td>Is the problem real, and what are the baselines?</td><td><span class="pill must">Answered online</span></td><td>Yes. See the evidence table in <a href="#problem">section 1</a>. Optional: one quote from a Malaysian agency or creator for the video.</td></tr>
+    <tr><td class="id">Q7</td><td>Which AI model?</td><td><span class="pill must">Decided</span></td><td><strong>Claude Haiku 5.5.</strong> PDF and image input is supported (all active models). If it misses the G3 targets during the week 2 eval, switch <code>AI_MODEL</code> to Claude Sonnet 5.5.</td></tr>
+  </table></div>
+</section>
+
+<section id="rollout">
+  <h2>12. Rollout</h2>
+  <div class="table-wrap"><table>
+    <tr><th>Phase</th><th>Dates</th><th>Exit criteria</th></tr>
+    <tr><td>Week 1: foundations</td><td>Oct 12–18</td><td>Q1–Q4 answered. A script sends a sandbox invoice and a sandbox payout. App skeleton with both Bryntum views on seed data.</td></tr>
+    <tr><td>Week 2: money + AI</td><td>Oct 19–25</td><td>R1–R12 and R15–R17 work end-to-end locally.</td></tr>
+    <tr><td>Week 3: views + deploy</td><td>Oct 26–Nov 1</td><td>R13, R14, R18, R19, R21 done. Deployed on Render with live webhooks.</td></tr>
+    <tr><td>Week 4: polish</td><td>Nov 2–8</td><td>Metrics in section 4 met. README, licence, setup instructions. "Should" items if time allows.</td></tr>
+    <tr><td>Submit</td><td>Nov 9–11</td><td>Video recorded and uploaded, Devpost text written, submitted by Nov 11 (one day of buffer).</td></tr>
+  </table></div>
+  <p>See <a href="architecture.html#plan">the architecture doc</a> for the task-level plan.</p>
+</section>
+
+<footer>On-Track PRD · v0.1 draft · Oct 12, 2026</footer>
+</main>
+</div>
+</body>
+</html>

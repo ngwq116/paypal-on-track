@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>On-Track Market Research</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="topbar"><div class="topbar-inner">
+  <a class="brand" href="index.html">On<span>-</span>Track</a>
+  <nav>
+    <a href="index.html">Overview</a>
+    <a href="prd.html">PRD</a>
+    <a href="market-research.html" aria-current="page">Market research</a>
+    <a href="architecture.html">Tech stack &amp; architecture</a>
+  </nav>
+</div></div>
+
+<div class="layout">
+<aside class="toc">
+  <p>Contents</p>
+  <ol>
+    <li><a href="#summary">1. Summary</a></li>
+    <li><a href="#suites">2. Influencer suites</a></li>
+    <li><a href="#payouts">3. Payout services</a></li>
+    <li><a href="#hackathon">4. Similar hackathon projects</a></li>
+    <li><a href="#sea">5. Malaysia &amp; SEA</a></li>
+    <li><a href="#compare">6. Feature comparison</a></li>
+    <li><a href="#position">7. Positioning</a></li>
+    <li><a href="#gaps">8. Gaps &amp; next steps</a></li>
+    <li><a href="#sources">9. Sources</a></li>
+  </ol>
+</aside>
+
+<main>
+<header class="doc-head">
+  <div class="eyebrow">Competitive landscape</div>
+  <h1>Market research</h1>
+  <p class="lede">What already exists for paying influencers, creators and freelancers, and where On-Track is different.</p>
+  <div class="meta">
+    <span>Date: Oct 12, 2026</span>
+    <span>Method: web search + vendor pages</span>
+    <span>Status: Draft</span>
+  </div>
+</header>
+
+<section id="summary">
+  <h2>1. Summary</h2>
+  <div class="callout"><p><strong>Similar products exist, but none combines what On-Track does.</strong> The existing tools show the problem is real (which helps the PRD's impact case). The gaps leave room for something new.</p></div>
+  <ul>
+    <li><strong>Influencer suites</strong> (Grin, Later, Meltwater, HypeAuditor, Heepsy) pay creators on behalf of <em>brands</em>. Verifying the post is still mostly manual.</li>
+    <li><strong>Payout services</strong> (Creatorcheck, Trolley) move money but don't understand campaigns, contracts or deliverables.</li>
+    <li><strong>Hackathon projects</strong> (AdLoom, FlowBack) already do "AI checks the post, then pays", but in crypto and without an agency in the middle.</li>
+    <li><strong>Not found anywhere:</strong> locking creator payouts until the client has paid the agency, checking freelancer invoices against the contract, and a calendar linked to both sides of the money.</li>
+  </ul>
+  <div class="callout warn"><p>Most sources are vendor marketing pages, review roundups and hackathon showcases. Feature claims below are as stated by those sources and have not been tested hands-on.</p></div>
+</section>
+
+<section id="suites">
+  <h2>2. Influencer marketing suites with payments</h2>
+  <div class="table-wrap"><table>
+    <tr><th>Product</th><th>What it does for payments</th><th>Gap vs On-Track</th></tr>
+    <tr><td><strong>Grin</strong></td><td>Automates invoice creation, tracks payment status, handles tax compliance. Pricing on request.</td><td>Built for brands. No client-to-agency billing or payout lock.</td></tr>
+    <tr><td><strong>Later</strong> (Influence)</td><td>Tracks who has been paid and when. Pays in cash, gift cards, promo codes or products.</td><td>Tracking only. No AI verification of deliverables.</td></tr>
+    <tr><td><strong>Meltwater</strong> (Klear Pay)</td><td>Creators enter their own bank details. Handles US tax forms. Multi-currency payouts.</td><td>Onboarding and payout plumbing, not campaign cash flow.</td></tr>
+    <tr><td><strong>HypeAuditor</strong></td><td>Brands generate and store invoices <strong>using PayPal Invoicing</strong>.</td><td>Closest on PayPal use, but invoicing only. No post check or payout rules.</td></tr>
+    <tr><td><strong>Heepsy</strong></td><td>Charges a fee per payment. Holds funds and pays the creator only if there's no disagreement within 3 working days.</td><td>Time-based hold, not verification. Brand-to-creator only.</td></tr>
+    <tr><td><strong>Influentials</strong></td><td>Agency plan: €0/month, €299 per published campaign, plus 19% on creator payouts. Bills clients for strategy and execution.</td><td>Closest agency fit, but a managed marketplace with a large fee, not a tool the agency runs.</td></tr>
+  </table></div>
+</section>
+
+<section id="payouts">
+  <h2>3. Payout and payment services</h2>
+  <div class="table-wrap"><table>
+    <tr><th>Product</th><th>What it does</th><th>Gap vs On-Track</th></tr>
+    <tr><td><strong>Creatorcheck</strong></td><td>Creator payouts, KYC and tax forms, EU DAC7 compliance. Combines many payouts into one invoice for finance.</td><td>No link between payouts and verified work or client payments.</td></tr>
+    <tr><td><strong>Trolley</strong></td><td>Payout layer: onboard and verify recipients in 210+ countries, with KYC and tax handling.</td><td>Pure infrastructure. No campaigns or AI.</td></tr>
+    <tr><td>Lumanu, Tipalti, Payoneer, Deel</td><td>Pay creators, contractors and freelancers. <em>From prior knowledge, not checked in this research.</em></td><td>General-purpose payables. Not campaign-aware.</td></tr>
+  </table></div>
+</section>
+
+<section id="hackathon">
+  <h2>4. Similar hackathon projects</h2>
+  <p>These are the closest matches to On-Track's "AI checks the post, then pays" step.</p>
+  <div class="grid">
+    <div class="card"><h4>AdLoom (ETHGlobal)</h4><p>AI agents check posts for hashtags, mentions and campaign compliance, then release PYUSD from escrow. Claims under 30 s verification and a fixed 2.5% fee.</p></div>
+    <div class="card"><h4>FlowBack (Chainlink hackathon)</h4><p>Brands deposit USDC with payout rules (e.g. $10 per 1,000 views). Pulls YouTube/TikTok engagement, runs AI content checks, auto-releases payment.</p></div>
+  </div>
+  <p><strong>What they lack:</strong> both are crypto and smart-contract based, both go brand → creator directly, and neither handles client billing, freelancer invoices or scheduling.</p>
+  <p><strong>This hackathon:</strong> the PayPal AI Hackathon project gallery is not yet published (checked Oct 12, 2026), so competing entries can't be reviewed before the deadline.</p>
+  <h3>Industry context</h3>
+  <ul>
+    <li>Trade coverage (Influencers Time) describes deliverable verification as still largely manual: someone confirms the post went live, met the brief and stayed up for the required time.</li>
+    <li>The same outlet argues AI agents are starting to verify deliverables and trigger same-day payouts, which supports the timing of On-Track's idea.</li>
+  </ul>
+</section>
+
+<section id="sea">
+  <h2>5. Malaysia &amp; Southeast Asia</h2>
+  <ul>
+    <li><strong>No local KOL payment platform</strong> was found in this search. Results were mostly job postings.</li>
+    <li><strong>KOLHUB</strong> (Malaysian influencer agency, founded 2020) shows no payment tooling in its public profile.</li>
+    <li><strong>BJAK</strong> and <strong>Garena</strong> are hiring in-house KOL managers whose roles cover sourcing, contracts and reporting. This suggests KOL management, including payments, is often done by hand inside companies.</li>
+  </ul>
+  <div class="callout warn"><p>This is a weak signal from one search, not proof of an empty market. Follow-up searches to run: "influencer payout platform Malaysia", "KOL payment software Southeast Asia".</p></div>
+</section>
+
+<section id="compare">
+  <h2>6. Feature comparison</h2>
+  <div class="table-wrap"><table>
+    <tr><th>Capability</th><th>On-Track</th><th>Influencer suites</th><th>Payout services</th><th>AdLoom / FlowBack</th></tr>
+    <tr><td>Agency in the middle: client in, creators out</td><td>✅</td><td>Partly</td><td>Payouts only</td><td>❌</td></tr>
+    <tr><td><strong>Payouts locked until client deposit clears</strong></td><td>✅</td><td>❌</td><td>❌</td><td>❌ (brand funds escrow directly)</td></tr>
+    <tr><td>AI checks the post before paying</td><td>✅</td><td>Mostly manual</td><td>❌</td><td>✅</td></tr>
+    <tr><td><strong>AI matches freelancer invoice to contract</strong></td><td>✅</td><td>❌</td><td>❌</td><td>❌</td></tr>
+    <tr><td><strong>AI reads contract to build the campaign</strong></td><td>✅</td><td>❌</td><td>❌</td><td>❌</td></tr>
+    <tr><td><strong>Timeline + calendar; drag a post and the client invoice moves</strong></td><td>✅</td><td>❌</td><td>❌</td><td>❌</td></tr>
+    <tr><td>PayPal, ordinary currency</td><td>✅</td><td>Some (HypeAuditor)</td><td>Varies</td><td>❌ crypto</td></tr>
+    <tr><td>KYC, tax forms, 200+ countries</td><td>❌ (non-goal)</td><td>Some</td><td>✅</td><td>❌</td></tr>
+  </table></div>
+  <p>Bold rows are capabilities not found in any product researched.</p>
+</section>
+
+<section id="position">
+  <h2>7. Positioning</h2>
+  <div class="callout"><p><strong>"Influencer tools help brands pay creators. On-Track protects the agency in the middle: no creator is paid before the client pays, and every payment is checked against the contract."</strong></p></div>
+  <ul>
+    <li><strong>Lead with cash-flow protection,</strong> not "AI verifies posts". Post verification alone has already been done (AdLoom, FlowBack).</li>
+    <li><strong>Name the existing tools in the video</strong> in one sentence ("tools like Grin pay creators for brands…"). It shows judges you know the market and makes the gap obvious.</li>
+    <li><strong>Use the market as evidence for impact:</strong> several funded products exist for creator payments, so the problem is real, but none serves the agency's two-sided cash flow.</li>
+    <li><strong>Don't compete on breadth.</strong> KYC, tax and global coverage are what payout services do well. Keep them as non-goals.</li>
+  </ul>
+</section>
+
+<section id="gaps">
+  <h2>8. Gaps in this research &amp; next steps</h2>
+  <ul>
+    <li>No hands-on trial of any product. Claims come from vendor and review pages.</li>
+    <li>Agency-side pain is still unconfirmed by real agency staff. Ties to <a href="prd.html#questions">PRD Q6</a>.</li>
+    <li>Lumanu and similar products were not researched in this pass.</li>
+    <li>Southeast Asia coverage is thin (one search).</li>
+    <li>Check the hackathon gallery again after it is published, for future reference.</li>
+  </ul>
+</section>
+
+<section id="sources">
+  <h2>9. Sources</h2>
+  <ul>
+    <li><a href="https://hypeauditor.com/blog/25-best-influencer-payment-tools-for-easy-reliable-and-on-time-payouts">HypeAuditor: 25 best influencer payment tools</a></li>
+    <li><a href="https://www.meltwater.com/en/blog/influencer-payment-platforms">Meltwater: influencer payment platforms</a></li>
+    <li><a href="https://heepsy.com/influencer-payments">Heepsy: influencer payments</a></li>
+    <li><a href="https://influentials.com/for-agencies">Influentials: for agencies</a></li>
+    <li><a href="https://influencity.com/influencer-marketing-for-agencies/">Influencity: influencer marketing for agencies</a></li>
+    <li><a href="https://ai.g2.com/marketplace/tools/creatorcheck">Creatorcheck on G2</a></li>
+    <li><a href="https://ethglobal.com/showcase/adloom-eh5kw">AdLoom (ETHGlobal showcase)</a></li>
+    <li><a href="https://chain.link/hack-26/projects/flowback">FlowBack (Chainlink hackathon)</a></li>
+    <li><a href="https://www.influencers-time.com/ai-agents-demand-instant-creator-payouts-brands-must-adapt-2/">Influencers Time: AI agents and instant creator payouts</a></li>
+    <li><a href="https://www.influencers-time.com/escrow-backed-creator-payouts-speed-up-campaign-launches/">Influencers Time: escrow-backed creator payouts</a></li>
+    <li><a href="https://my.hiredly.com/companies/kolhub">KOLHUB on Hiredly</a></li>
+    <li><a href="https://paypalaihackathon.devpost.com/project-gallery">PayPal AI Hackathon project gallery</a></li>
+  </ul>
+</section>
+
+<footer>On-Track market research · v0.1 draft · Oct 12, 2026</footer>
+</main>
+</div>
+</body>
+</html>

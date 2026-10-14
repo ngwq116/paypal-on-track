@@ -33,6 +33,16 @@ describe("toTimeline", () => {
     expect(byId["payout-po1"]).toMatchObject({ kind: "payout", draggable: false, resourceId: "cr1", eventColor: "yellow", name: "Awaiting approval $1,200" });
   });
 
+  it("gives each event a short label for one-day-wide Team chips", () => {
+    const short = Object.fromEntries(events.map((e) => [e.id, e.shortName]));
+    expect(short).toEqual({
+      "assignment-as1": "Verified", // colour + legend already say "Post"
+      "assignment-as2": "Held",
+      "invoice-inv1": "Deposit $6,000",
+      "payout-po1": "Approve $1,200",
+    });
+  });
+
   it("never lets an event be resized", () => {
     expect(events.every((e) => e.resizable === false)).toBe(true);
   });

@@ -7,7 +7,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
+  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -127,4 +127,24 @@
   html {
     @apply font-sans;
   }
+}
+/* Bryntum event chips: match the prototype's 12px/500 labels */
+.b-sch-event-wrap .b-sch-event,
+.b-cal-event-wrap .b-cal-event {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* Team view chips are one day wide (~70px): wrap the label instead of cutting it off */
+.b-scheduler .b-sch-event,
+.b-scheduler .b-sch-event-content {
+  white-space: normal;
+  line-height: 1.2;
+}
+.b-scheduler .b-sch-event {
+  padding-inline: 6px;
+  font-size: 11px;
+}
+.b-scheduler .b-sch-event-content {
+  margin-inline: 0;
 }

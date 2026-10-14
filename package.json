@@ -13,10 +13,13 @@
     "db:push": "drizzle-kit push",
     "db:seed": "tsx --env-file=.env scripts/seed.ts",
     "db:studio": "drizzle-kit studio"
-
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
+    "@bryntum/calendar": "npm:@bryntum/calendar-trial@^7.3.7",
+    "@bryntum/calendar-react": "^7.3.7",
+    "@bryntum/scheduler": "npm:@bryntum/scheduler-trial@^7.3.7",
+    "@bryntum/scheduler-react": "^7.3.7",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.4.0",
     "dotenv": "^18.0.7",

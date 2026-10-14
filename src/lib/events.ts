@@ -28,6 +28,7 @@ export interface TimelineEvent {
   id: string;
   resourceId: string;
   name: string;
+  shortName: string; // fits a one-day-wide Team chip
   startDate: string;
   endDate: string;
   eventColor: string;
@@ -44,14 +45,17 @@ export function addDays(day: string, n: number): string {
 
 const usd = (cents: number) => "$" + (cents / 100).toLocaleString("en-US", { maximumFractionDigits: 2 });
 
-const PAYOUT_LABEL: Record<TimelineInput["payouts"][number]["status"], [string, string]> = {
-  awaiting_approval: ["Awaiting approval", "yellow"],
-  scheduled: ["Scheduled", "lime"],
-  payout_sent: ["Sending", "green"],
-  paid: ["Paid", "green"],
-  payout_failed: ["Payout failed", "red"],
-  held: ["Held", "red"],
+// [label, short label, colour]
+const PAYOUT_LABEL: Record<TimelineInput["payouts"][number]["status"], [string, string, string]> = {
+  awaiting_approval: ["Awaiting approval", "Approve", "yellow"],
+  scheduled: ["Scheduled", "Scheduled", "lime"],
+  payout_sent: ["Sending", "Sending", "green"],
+  paid: ["Paid", "Paid", "green"],
+  payout_failed: ["Payout failed", "Failed", "red"],
+  held: ["Held", "Held", "red"],
 };
+
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 export function toTimeline(input: TimelineInput): { resources: TimelineResource[]; events: TimelineEvent[] } {
   const resources: TimelineResource[] = [{ id: "client", name: input.client.name }];
@@ -72,6 +76,7 @@ export function toTimeline(input: TimelineInput): { resources: TimelineResource[
       id: `assignment-${a.id}`,
       resourceId: a.creatorId,
       name: `${kind === "post" ? "Post" : "Deliverable"} · ${a.status}`,
+      shortName: capitalize(a.status),
       ...day(a.dueDate),
       eventColor: a.status === "held" ? "red" : kind === "post" ? "violet" : "orange",
       kind,
@@ -85,6 +90,7 @@ export function toTimeline(input: TimelineInput): { resources: TimelineResource[
       id: `invoice-${inv.id}`,
       resourceId: "client",
       name: `${inv.kind === "deposit" ? "Deposit" : "Balance"} ${usd(inv.amountCents)} · ${inv.status}`,
+      shortName: `${inv.kind === "deposit" ? "Deposit" : "Balance"} ${usd(inv.amountCents)}`,
       ...day(inv.dueDate),
       eventColor: "blue",
       kind: "invoice",
@@ -95,11 +101,12 @@ export function toTimeline(input: TimelineInput): { resources: TimelineResource[
 
   const creatorOf = new Map(input.assignments.map((a) => [a.id, a.creatorId]));
   for (const p of input.payouts) {
-    const [label, color] = PAYOUT_LABEL[p.status];
+    const [label, short, color] = PAYOUT_LABEL[p.status];
     events.push({
       id: `payout-${p.id}`,
       resourceId: creatorOf.get(p.assignmentId) ?? "client",
       name: `${label} ${usd(p.amountCents)}`,
+      shortName: `${short} ${usd(p.amountCents)}`,
       ...day(p.scheduledFor),
       eventColor: color,
       kind: "payout",

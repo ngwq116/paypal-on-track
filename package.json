@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "paypal:smoke": "tsx --env-file=.env scripts/paypal-smoke.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

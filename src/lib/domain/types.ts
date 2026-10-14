@@ -22,7 +22,7 @@ export interface Payout {
     amountCents: number;
     status: PayoutStatus;
     approvedBy: string | null;
-    scheduledfor: string;  // YYYY-MM-DD
+    scheduledFor: string;  // YYYY-MM-DD
 }
 
 export type PayDecision = 

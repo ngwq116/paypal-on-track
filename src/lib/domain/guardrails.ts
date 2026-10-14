@@ -1,4 +1,3 @@
-import { error } from "node:console";
 import { Assignment, Campaign, EditResult, PayDecision, Payout, Verification } from "./types";
 
 const SENT: Payout["status"][] = ["payout_sent", "paid"];

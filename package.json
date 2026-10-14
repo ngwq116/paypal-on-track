@@ -9,14 +9,21 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "paypal:smoke": "tsx --env-file=.env scripts/paypal-smoke.ts"
+    "paypal:smoke": "tsx --env-file=.env scripts/paypal-smoke.ts",
+    "db:push": "drizzle-kit push",
+    "db:seed": "tsx --env-file=.env scripts/seed.ts",
+    "db:studio": "drizzle-kit studio"
+
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.4.0",
+    "dotenv": "^18.0.7",
+    "drizzle-orm": "^0.45.4",
     "lucide-react": "^1.57.0",
     "next": "16.4.0",
+    "postgres": "^3.4.9",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "shadcn": "^4.21.4",
@@ -27,6 +34,7 @@
     "@types/node": "^26.6.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "drizzle-kit": "^0.31.11",
     "eslint": "^9",
     "eslint-config-next": "16.4.0",
     "tailwindcss": "^4",

@@ -15,7 +15,7 @@ AI payment desk for marketing agencies: bill clients through PayPal, pay influen
 - `npm test`: Vitest, all unit tests
 - `npm run dev`: app on http://localhost:3000
 - `npm run build`: production build (run before every commit)
-- `npm run db:push` / `npm run db:seed` / `npm run db:studio`: Drizzle against local Postgres (`brew services start postgresql@15`, database `ontrack`)
+- `npm run db:push` / `npm run db:seed` / `npm run db:studio`: Drizzle against local Postgres in Docker (`make up`, database `ontrack`)
 - `npm run paypal:smoke`: sends a real $1.00 sandbox invoice and payout
 
 ## Rules that must not break

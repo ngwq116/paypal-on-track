@@ -1,0 +1,18 @@
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: ontrack
+      POSTGRES_PASSWORD: ontrack # local-only dev password, safe to commit
+      POSTGRES_DB: ontrack
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ontrack -d ontrack"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+volumes:
+  pgdata:

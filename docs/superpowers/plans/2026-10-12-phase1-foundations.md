@@ -6,7 +6,7 @@
 
 **Architecture:** One Next.js (App Router, TypeScript) app. Pure domain rules live in `src/lib/domain/` with no I/O so they can be unit-tested. PayPal is called through a small typed REST client in `src/lib/paypal/`. Postgres via Drizzle ORM. Bryntum components render client-side only.
 
-**Tech Stack:** Next.js + TypeScript, Tailwind + shadcn/ui, Vitest, Drizzle ORM + postgres-js, PostgreSQL 15 (Homebrew), PayPal REST API (sandbox), Bryntum Scheduler + Calendar (trial), tsx for scripts.
+**Tech Stack:** Next.js + TypeScript, Tailwind + shadcn/ui, Vitest, Drizzle ORM + postgres-js, PostgreSQL 15 (Docker Compose), PayPal REST API (sandbox), Bryntum Scheduler + Calendar (trial), tsx for scripts.
 
 **Spec:** `docs/prd.html` (requirements R1–R26, questions Q1–Q7) and `docs/architecture.html` (stack, data model, guardrails, PayPal endpoints, build plan).
 
@@ -766,6 +766,9 @@ git commit -m "feat: PayPal REST client, invoicing and payouts; sandbox smoke te
 ### Task 4: Database schema and seed data
 
 **Files:**
+- Create: `docker-compose.yml`
+- Create: `Makefile`
+- Modify: `.env.example` (and your local `.env`): `DATABASE_URL`
 - Create: `src/db/schema.ts`
 - Create: `src/db/index.ts`
 - Create: `drizzle.config.ts`
@@ -775,14 +778,44 @@ git commit -m "feat: PayPal REST client, invoicing and payouts; sandbox smoke te
 - Consumes: nothing from earlier tasks (types mirror Task 2's names).
 - Produces: tables `clients`, `campaigns`, `creators`, `assignments`, `clientInvoices`, `payouts`, `auditEvents`; `db` export; `npm run db:push`, `npm run db:seed`. Seed prints the campaign id.
 
-- [ ] **Step 1: Start Postgres and create the database**
+- [ ] **Step 1: Run Postgres in Docker**
 
+Postgres runs in a container, so nothing is installed or left running on the Mac. The container creates the `ontrack` database on first start.
+
+Create `docker-compose.yml`:
+```yaml
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: ontrack
+      POSTGRES_PASSWORD: ontrack # local-only dev password, safe to commit
+      POSTGRES_DB: ontrack
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+volumes:
+  pgdata:
+```
+
+Set `DATABASE_URL` in **both** `.env.example` and `.env`:
 ```bash
-brew services start postgresql@15
-createdb ontrack
-psql ontrack -c "select 1"
+DATABASE_URL=postgres://ontrack:ontrack@localhost:5432/ontrack
+```
+
+A `Makefile` wraps the Docker commands: `make up` (= `docker compose up -d --build --wait`), `make down`, `make logs`, `make ps`, `make psql`, `make db-push`, `make db-seed`, and `make db-reset` (wipes the volume, then push + seed).
+
+Start it and check it answers:
+```bash
+make up
+docker compose exec db psql -U ontrack ontrack -c "select 1"
 ```
 Expected: a row with `1`.
+
+If `up` fails with "port is already allocated", Homebrew Postgres is holding 5432: run `brew services stop postgresql@15`, or map `"5433:5432"` and use port `5433` in `DATABASE_URL`.
+
+Day to day: `make up` to start, `make down` to stop. Data survives in the `pgdata` volume; `make db-reset` wipes it and re-seeds.
 
 - [ ] **Step 2: Install Drizzle**
 
@@ -906,7 +939,7 @@ Add to `package.json` scripts:
 Run: `npm run db:push`
 Expected: it lists the 7 tables and 5 enums and applies them.
 
-Verify: `psql ontrack -c "\dt"` lists `assignments`, `audit_events`, `campaigns`, `client_invoices`, `clients`, `creators`, `payouts`.
+Verify: `docker compose exec db psql -U ontrack ontrack -c "\dt"` lists `assignments`, `audit_events`, `campaigns`, `client_invoices`, `clients`, `creators`, `payouts`.
 
 - [ ] **Step 5: Write the seed (the prototype's Kopi Kita campaign)**
 
@@ -973,12 +1006,13 @@ main().catch((err) => {
 Run: `npm run db:seed`
 Expected: `Seeded campaign <uuid>`.
 
-Verify: `psql ontrack -c "select name, fee_cents, status from assignments join creators on creators.id = assignments.creator_id"` shows the 4 rows.
+Verify: `docker compose exec db psql -U ontrack ontrack -c "select name, fee_cents, status from assignments join creators on creators.id = assignments.creator_id"` shows the 4 rows.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/db drizzle.config.ts scripts/seed.ts package.json package-lock.json
+git add docker-compose.yml Makefile .env.example src/db drizzle.config.ts scripts/seed.ts package.json package-lock.json
+git status   # confirm .env is NOT listed
 git commit -m "feat: Postgres schema (Drizzle) and Kopi Kita seed data"
 ```
 

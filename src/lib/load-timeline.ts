@@ -1,12 +1,12 @@
 import { eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { toTimeline } from "./events";
+import { isUuid } from "./uuid";
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function loadTimeline(campaignId: string) {
   // A malformed id would make Postgres throw (500); treat it as "not found" instead.
-  if (!UUID.test(campaignId)) return null;
+  if (!isUuid(campaignId)) return null;
   const [campaign] = await db.select().from(schema.campaigns).where(eq(schema.campaigns.id, campaignId));
   if (!campaign) return null;
   const [client] = await db.select().from(schema.clients).where(eq(schema.clients.id, campaign.clientId));

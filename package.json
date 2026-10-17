@@ -12,6 +12,7 @@
     "paypal:smoke": "tsx --env-file=.env scripts/paypal-smoke.ts",
     "db:push": "drizzle-kit push",
     "db:seed": "tsx --env-file=.env scripts/seed.ts",
+    "db:seed:fresh": "tsx --env-file=.env scripts/seed.ts fresh",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {

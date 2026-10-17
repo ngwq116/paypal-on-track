@@ -27,3 +27,6 @@ db-seed:
 db-reset:
 	docker compose down -v
 	$(MAKE) up db-push db-seed
+
+db-fresh:
+	npm run db:seed:fresh

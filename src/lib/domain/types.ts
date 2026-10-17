@@ -33,3 +33,11 @@ export type PayDecision =
 export type EditResult = 
 | { ok: true; resetApproval: boolean}
 | { ok: false; errors: string[]}
+
+// Checklist source for an influencer post. Freelancer assignments have no brief
+export interface PostBrief {
+    brandTag: string;
+    hashtags: string[];
+    windowStart: string;  //YYYY-MM-DD
+    windowEnd: string;  //YYYY-MM-DD
+}

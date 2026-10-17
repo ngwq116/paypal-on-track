@@ -41,7 +41,7 @@ export interface PayPalWebhookEvent {
 
 export type InterpretedEvent = 
 | { kind: "invoice_paid"; paypalInvoiceId: string }
-| { kind: "payout_item"; outcome: "paid" | "failed"; payoutId: string | null; batchId: string | null; status: string }
+| { kind: "payout_item"; outcome: "paid" | "failed"; payoutId: string | null; batchId: string | null; status: string; reason: string }
 | { kind: "ignored" }
 
 type Obj = Record<string, unknown>;
@@ -66,7 +66,9 @@ export function interpretEvent(e: PayPalWebhookEvent): InterpretedEvent {
         const batchId = str(r.payout_batch_id);
 
         if (!payoutId && !batchId) return { kind: "ignored" };
-        return { kind: "payout_item", outcome: status === "SUCCEEDED" ? "paid" : "failed", payoutId, batchId, status};
+        // A failed item carries PayPal's own error name (e.g. SELF_PAY_NOT_ALLOWED); it says more than "FAILED".
+        const reason = str(obj(r.errors).name) ?? status;
+        return { kind: "payout_item", outcome: status === "SUCCEEDED" ? "paid" : "failed", payoutId, batchId, status, reason};
     }
 
     return { kind: "ignored" };

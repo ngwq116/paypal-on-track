@@ -52,6 +52,9 @@ export default function CampaignHeader(props: {
         <p className="text-sm text-zinc-500">
           {clientName} · {formatRange(campaign.startDate, campaign.endDate)} · {campaign.currency}
         </p>
+        <a href={`/campaigns/${campaign.id}/audit`} className="self-start text-[13px] text-zinc-500 underline-offset-4 hover:text-zinc-950 hover:underline">
+          Audit log
+        </a>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">

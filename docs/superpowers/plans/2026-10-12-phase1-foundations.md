@@ -1485,3 +1485,13 @@ git commit -m "docs: phase 1 checkpoint, update open questions"
 | **3: AI + views + deploy** | Oct 26–Nov 1 | Contract and invoice autofill with Claude Haiku 5.5 (R1–R3, R11); eval set (Q7); colours, side panel, polling (R13, R14, R18); drag to reschedule (R19); deploy to Render with webhooks and daily cron |
 | **4: Polish** | Nov 2–8 | Eval targets, edge cases, reset-demo button, README with judge setup steps, MIT licence; R24 / R20 / R22 if time |
 | **Submit** | Nov 9–11 | Video (≤ 2:50), Devpost text, submit Nov 11 |
+
+## Phase 1 notes
+
+- PayPal: invoice item field is `currency_code` (a typo gave 400 MISSING_REQUIRED_PARAMETER).
+- PayPal: payouts draw from the sender's balance in the payout currency; use a US sandbox business account with USD.
+- PayPal: dashboard feature toggles need a fresh token. The client now drops its cached token and retries once on a 401.
+- Bryntum 7.3.7: CSS is `scheduler.css` + `stockholm-light.css` + Font Awesome (no `scheduler.stockholm.css`). Plan B (one product per route) kept.
+- Next 16 with `cacheComponents`: `export const dynamic` is rejected; uncached data must sit inside `<Suspense>`.
+- Tailwind's Turbopack CSS rule does not hot-reload `globals.css`; restart `npm run dev` after CSS edits.
+- Postgres runs in Docker (`make up`), not Homebrew.

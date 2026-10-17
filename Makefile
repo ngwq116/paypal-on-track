@@ -1,4 +1,4 @@
-.PHONY: up down logs ps psql db-push db-seed db-reset
+.PHONY: up down logs ps psql db-push db-seed db-reset db-fresh test-db test-int
 
 # Build images (if any) and start containers in the background; waits until Postgres is healthy
 up:
@@ -30,3 +30,11 @@ db-reset:
 
 db-fresh:
 	npm run db:seed:fresh
+
+# Create (if missing) and migrate the integration-test database
+test-db:
+	docker compose exec -T db createdb -U ontrack ontrack_test 2>/dev/null || true
+	npm run db:push:test
+
+test-int: test-db
+	npm run test:int

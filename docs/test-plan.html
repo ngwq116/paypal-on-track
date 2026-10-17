@@ -1,0 +1,832 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>On-Track test plan</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --primary: #d6b447;
+        --base-light: #fdfcf7;
+        --base-dark: #18181b;
+        --card: #fff;
+        --muted: #52525b;
+        --line: #d4d4d8;
+        --code-bg: #f2efe3;
+        --pass: #bbf7d0;
+        --fail: #fecaca;
+        --must: #fde68a;
+        --money: #bfdbfe;
+        --watch-bg: #fff1f1;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --base-light: #121214;
+          --base-dark: #e4e4e7;
+          --card: #1c1c1f;
+          --muted: #a1a1aa;
+          --line: #3f3f46;
+          --code-bg: #27272a;
+          --watch-bg: #2a1616;
+        }
+        .sc > .hd, th { color: #121214 !important; }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--base-light);
+        color: var(--base-dark);
+        font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+        line-height: 1.55;
+        padding: 36px 16px 90px;
+      }
+      main { max-width: 1040px; margin: 0 auto; }
+      h1 { font-size: 24px; border-bottom: 4px solid var(--base-dark); padding-bottom: 10px; margin: 0 0 6px; }
+      .sub { color: var(--muted); font-size: 13px; margin: 0 0 20px; }
+      h2 { font-size: 17px; margin: 32px 0 10px; border-left: 6px solid var(--primary); padding-left: 10px; }
+      p, li { font-size: 13px; }
+      code { background: var(--code-bg); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; font-size: 12px; overflow-wrap: anywhere; }
+      pre {
+        background: var(--card); border: 2px solid var(--base-dark); border-radius: 8px;
+        padding: 11px 13px; overflow-x: auto; font-size: 12px; box-shadow: 3px 3px 0 0 rgba(0, 0, 0, 0.1);
+      }
+      pre code { background: none; border: 0; padding: 0; }
+      .tablewrap { overflow-x: auto; }
+      table { border-collapse: collapse; width: 100%; font-size: 12px; margin: 12px 0; background: var(--card); }
+      th, td { border: 1px solid var(--base-dark); padding: 6px 9px; text-align: left; vertical-align: top; }
+      th { background: var(--base-dark); color: #fff; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+      .hud {
+        position: sticky; top: 0; z-index: 5; background: var(--base-light);
+        border: 2px solid var(--base-dark); border-radius: 10px; padding: 10px 12px; margin-bottom: 18px;
+        box-shadow: 3px 3px 0 0 rgba(0,0,0,.1); display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+      }
+      .hud b { font-size: 13px; }
+      .bar { flex: 1; min-width: 160px; height: 12px; border: 2px solid var(--base-dark); border-radius: 999px; overflow: hidden; background: var(--card); }
+      .bar > i { display: block; height: 100%; width: 0; background: var(--pass); transition: width .2s; }
+      .hud button {
+        font-family: inherit; font-size: 11px; font-weight: 800; color: var(--base-dark);
+        border: 2px solid var(--base-dark); border-radius: 8px; background: var(--card);
+        padding: 4px 9px; cursor: pointer; box-shadow: 2px 2px 0 0 var(--base-dark);
+      }
+
+      .sc {
+        border: 2px solid var(--base-dark); border-radius: 10px; background: var(--card);
+        margin: 12px 0; overflow: hidden; box-shadow: 3px 3px 0 0 rgba(0, 0, 0, 0.08);
+      }
+      .sc > .hd {
+        background: var(--base-dark); color: #fff; padding: 7px 11px; font-size: 13px; font-weight: 700;
+        display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+      }
+      .sc > .hd .id { background: var(--primary); color: #18181b; border-radius: 999px; padding: 0 8px; font-size: 11px; font-weight: 800; }
+      .sc > .hd .tags { margin-left: auto; display: flex; gap: 6px; }
+      .sc > .hd .must, .sc > .hd .money {
+        color: #18181b; border-radius: 999px; padding: 0 8px; font-size: 10px; font-weight: 800;
+        text-transform: uppercase; letter-spacing: .06em;
+      }
+      .sc > .hd .must { background: var(--must); }
+      .sc > .hd .money { background: var(--money); }
+      .sc > .bd { padding: 10px 13px; }
+      .sc .meta { font-size: 11px; color: var(--muted); margin: 0 0 8px; }
+      .sc .meta code { font-size: 11px; }
+      .lbl { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 9px 0 3px; }
+      .sc ol, .sc ul { margin: 4px 0; padding-left: 20px; }
+      .watch { border-left: 5px solid #ef4444; background: var(--watch-bg); padding: 7px 10px; border-radius: 6px; margin-top: 9px; font-size: 12px; }
+      .marks { display: flex; gap: 14px; align-items: center; margin-top: 11px; padding-top: 9px; border-top: 2px dashed var(--line); font-size: 12px; flex-wrap: wrap; }
+      .marks label { display: flex; align-items: center; gap: 5px; cursor: pointer; font-weight: 700; }
+      .marks input[type=text] {
+        flex: 1; min-width: 180px; font-family: inherit; font-size: 12px; color: var(--base-dark);
+        background: var(--base-light); border: 1px solid var(--line); border-radius: 6px; padding: 3px 7px;
+      }
+      .sc[data-state="pass"] { background: color-mix(in srgb, var(--pass) 26%, var(--card)); }
+      .sc[data-state="fail"] { background: color-mix(in srgb, var(--fail) 30%, var(--card)); }
+      .note { font-size: 12px; color: var(--muted); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>On-Track test plan</h1>
+      <p class="sub">
+        2026-10-17 · Phases 1–2 · Phase 1 basics (views, PayPal smoke test), then money flows: deposit invoice, PayPal webhook, approvals, payouts, post checklist,
+        freelancer invoice match, uploads, daily run, audit log · PayPal sandbox only
+      </p>
+
+      <div class="hud">
+        <b><span id="done">0</span> / <span id="total">0</span></b>
+        <div class="bar"><i id="fill"></i></div>
+        <span class="note" id="fails"></span>
+        <button type="button" onclick="resetAll()">Reset</button>
+      </div>
+
+      <h2>Preflight</h2>
+      <pre><code># 1. Database + app
+make up
+npm run dev                      # http://localhost:3000
+
+# 2. PayPal webhooks reach your laptop (only for cards marked "money")
+cloudflared tunnel --url http://localhost:3000
+#   New URL each restart → update it in developer.paypal.com
+#   (Apps &amp; Credentials → app → Sandbox Webhooks → edit)
+
+# 3. .env must have (values never committed):
+#   PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET / PAYPAL_API_BASE (sandbox)
+#   PAYPAL_WEBHOOK_ID       from the webhook you registered
+#   SANDBOX_CLIENT_EMAIL    a sandbox PERSONAL account (pays invoices)
+#   SANDBOX_CREATOR_EMAIL   a sandbox PERSONAL account (gets payouts), not the business one
+#   CRON_SECRET             openssl rand -hex 32
+#   PAYPAL_WEBHOOK_DEBUG=0  (1 only while debugging; logs contain emails)
+
+# 4. Pick the data for the section you're testing
+npm run db:seed:fresh            # start of demo: deposit not sent, nothing verified
+npm run db:seed                  # mid-campaign: deposit paid, @jasonlifts payout awaiting approval</code></pre>
+      <p class="note">
+        Every reseed creates a new campaign id: go back to <code>/</code> and open the campaign again; old tabs 404.
+        Restart <code>npm run dev</code> after any <code>.env</code> or <code>next.config.ts</code> change.
+        Cards tagged <b>money</b> make real sandbox PayPal calls (test money, but they draw down the sandbox balance).
+        Keep a 4–7&nbsp;MB image, a small PNG, a small PDF and an <code>.svg</code> handy for the upload cards.
+      </p>
+
+      <h2>Requirement coverage</h2>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>Req</th><th>What</th><th>Covered by</th></tr></thead>
+        <tbody>
+          <tr><td>Phase 1</td><td>Seed data, Team and Calendar views, PayPal client, safety rules</td><td>B1–B5, P1</td></tr>
+          <tr><td>R5</td><td>Deposit invoice in one click; balance as a draft</td><td>D1, D4, D5</td></tr>
+          <tr><td>R6</td><td>Client pays → campaign updates by itself, payouts unlock</td><td>D2, D3, W1, C5</td></tr>
+          <tr><td>R7–R8</td><td>Post proof upload + checklist, hold with note</td><td>V1–V6</td></tr>
+          <tr><td>R9</td><td>Verified post queues a payout of the fee</td><td>V1, V5</td></tr>
+          <tr><td>R10–R12</td><td>Freelancer invoice compared, held, override</td><td>F1–F6</td></tr>
+          <tr><td>R15</td><td>No payout before the deposit clears</td><td>D6, A3, G1</td></tr>
+          <tr><td>R16</td><td>Never above the fee; paid only once</td><td>A6, A9, F3, G2</td></tr>
+          <tr><td>R17</td><td>Every payout approved by a person, one or batch</td><td>A1, A2, A10, C4</td></tr>
+          <tr><td>R21</td><td>Audit log of every change with who and why</td><td>L1, L2</td></tr>
+          <tr><td>R25</td><td>Scheduled payouts sent on their date; Send now</td><td>A8, C3</td></tr>
+          <tr><td>R26</td><td>Edit amount/date with reason; resets approval</td><td>A5–A7</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <h2>P — Preflight</h2>
+
+      <div class="sc" id="P1">
+        <div class="hd"><span class="id">P1</span> Automated suites are green <span class="tags"><span class="must">must pass</span></span></div>
+        <div class="bd">
+          <div class="lbl">Do</div>
+          <ol><li><code>npm test</code></li><li><code>npm run test:int</code> (or <code>make test-int</code>)</li><li><code>npm run build</code></li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li>All unit tests pass (59), all integration tests pass (43), build compiles.</li></ul>
+          <div class="watch">If <code>test:int</code> fails with a connection error, the DB container is down: <code>make up</code>, then <code>make test-db</code>.</div>
+        </div>
+      </div>
+
+      <div class="sc" id="P2">
+        <div class="hd"><span class="id">P2</span> Pages load <span class="tags"><span class="must">must pass</span></span></div>
+        <div class="bd">
+          <div class="lbl">Do</div>
+          <ol><li><code>npm run db:seed</code>, open <code>/</code>, the campaign, <b>Team</b>, <b>Calendar</b>, <b>Approvals</b>, <b>Audit log</b>.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li>Top nav shows On-Track · Campaigns · Approvals. Every page renders; no error overlay.</li><li>Team view: calendar, deposit panel, and the assignments table below it.</li></ul>
+        </div>
+      </div>
+
+      <h2>B — Phase 1 basics</h2>
+
+      <div class="sc" id="B1">
+        <div class="hd"><span class="id">B1</span> Home and campaign Team view <span class="tags"><span class="must">must pass</span></span></div>
+        <div class="bd">
+          <p class="meta">Data: <code>db:seed</code> · Bryntum Scheduler</p>
+          <div class="lbl">Do</div>
+          <ol><li>Open <code>/</code> → <em>Kopi Kita · Pagi Launch</em> → <b>Team</b>.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul>
+            <li>Header: client, <em>Oct 19 – Nov 20, 2026 · USD</em>, Team/Calendar tabs, colour legend.</li>
+            <li>Rows: Kopi Kita Sdn Bhd, @aina.eats, @jasonlifts, @mira.travels, Daniel Lim. Two weeks from Mon Oct 19.</li>
+            <li>Chips sit on the right days with short, unclipped labels; colours match the legend (e.g. @jasonlifts yellow <em>Approve $1,200</em> on Oct 29).</li>
+          </ul>
+          <div class="watch">A chip one day off means a date was turned into a <code>Date</code> somewhere (timezone shift, agency is UTC+8).</div>
+        </div>
+      </div>
+
+      <div class="sc" id="B2">
+        <div class="hd"><span class="id">B2</span> Calendar view and switching tabs</div>
+        <div class="bd">
+          <div class="lbl">Do</div>
+          <ol><li>Click <b>Calendar</b>, then <b>Team</b> again. Keep DevTools console open.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li>October month view with the same events. Each switch is a full page load; both render, no console errors.</li></ul>
+        </div>
+      </div>
+
+      <div class="sc" id="B3">
+        <div class="hd"><span class="id">B3</span> Bad campaign links</div>
+        <div class="bd">
+          <div class="lbl">Do</div>
+          <ol><li>Open <code>/campaigns/not-a-uuid/team</code> and <code>/campaigns/00000000-0000-0000-0000-000000000000/calendar</code>.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li>A 404 page for both, not a 500.</li></ul>
+        </div>
+      </div>
+
+      <div class="sc" id="B4">
+        <div class="hd"><span class="id">B4</span> PayPal sandbox smoke test <span class="tags"><span class="money">money</span></span></div>
+        <div class="bd">
+          <div class="lbl">Do</div>
+          <ol><li><code>npm run paypal:smoke</code></li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li>A $1.00 invoice and a $1.00 payout are created; the script prints their ids. Both visible in the sandbox dashboard.</li></ul>
+          <div class="watch">403 NOT_AUTHORIZED after enabling a feature = cached token; <code>INSUFFICIENT_FUNDS</code> = no USD balance. Use <code>/paypal:explain-error &lt;code&gt;</code>.</div>
+        </div>
+      </div>
+
+      <div class="sc" id="B5">
+        <div class="hd"><span class="id">B5</span> Payout safety rules</div>
+        <div class="bd">
+          <p class="meta">Covered by <code>guardrails.test.ts</code> and <code>payout.test.ts</code> in P1; no manual step</p>
+          <div class="lbl">Expect</div>
+          <ul><li><code>canPay()</code> denies: deposit not cleared, already paid, not verified, above fee; needs approval when unapproved.</li><li>Money stays integer cents; PayPal gets 2-decimal strings; the payout id is the idempotency key; a 401 retries once with a fresh token.</li></ul>
+        </div>
+      </div>
+
+      <h2>D — Client deposit and balance invoices</h2>
+
+      <div class="sc" id="D1">
+        <div class="hd"><span class="id">D1</span> Send the deposit invoice <span class="tags"><span class="must">must pass</span><span class="money">money</span></span></div>
+        <div class="bd">
+          <p class="meta">Data: <code>db:seed:fresh</code> · Code: <code>sendDepositInvoice()</code></p>
+          <div class="lbl">Do</div>
+          <ol><li>Team view → amber line <em>"Deposit $6,000.00 not sent…"</em> → <b>Send deposit invoice</b>.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul>
+            <li>Notice <em>"Deposit invoice sent to the client through PayPal."</em></li>
+            <li>Grey line <em>"Deposit $6,000.00 sent. Waiting for the client to pay…"</em> with <b>Open as client (sandbox)</b> and <b>Check payment</b>.</li>
+            <li>The invoice <code>OT-xxxxxxxx-DEP</code> exists in the sandbox business account.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="sc" id="D2">
+        <div class="hd"><span class="id">D2</span> Client pays → banner turns green by itself <span class="tags"><span class="must">must pass</span><span class="money">money</span></span></div>
+        <div class="bd">
+          <p class="meta">Needs: tunnel · Code: webhook → <code>markInvoicePaid()</code></p>
+          <div class="lbl">Do</div>
+          <ol><li>After D1, click <b>Open as client (sandbox)</b>, log in as the sandbox <b>personal</b> account, pay in full.</li><li>Go back to the Team tab. <b>Don't reload.</b></li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li>Within ~1 min: green <em>"Client deposit received · $6,000.00. Creator payouts on this campaign are unlocked."</em></li></ul>
+          <div class="watch">The sandbox sometimes never fires <code>INVOICING.INVOICE.PAID</code> (seen Oct 17). If nothing arrives after a few minutes, that's PayPal, not us: run D3. Record which path settled it.</div>
+        </div>
+      </div>
+
+      <div class="sc" id="D3">
+        <div class="hd"><span class="id">D3</span> Check payment fallback <span class="tags"><span class="must">must pass</span><span class="money">money</span></span></div>
+        <div class="bd">
+          <p class="meta">Code: <code>checkInvoicePayment()</code></p>
+          <div class="lbl">Do</div>
+          <ol><li>With the deposit sent but <b>unpaid</b>: click <b>Check payment</b>.</li><li>Pay it as the client, then click <b>Check payment</b> again.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li>Unpaid: <em>"PayPal still shows the deposit as unpaid."</em> Nothing changes.</li><li>Paid: <em>"PayPal confirms the deposit is paid."</em> + green banner.</li><li>Audit log: <code>invoice.paid</code> by <code>paypal</code> with <code>via: status check</code>, exactly once even if the webhook also arrives later.</li></ul>
+        </div>
+      </div>
+
+      <div class="sc" id="D4">
+        <div class="hd"><span class="id">D4</span> Balance invoice saved as a draft <span class="tags"><span class="money">money</span></span></div>
+        <div class="bd">
+          <div class="lbl">Do</div>
+          <ol><li>Click <b>Create balance draft · due Nov 20</b>.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li>Notice <em>"Balance invoice saved in PayPal as a draft."</em>; the button disappears.</li><li>In PayPal it is a <b>draft</b> (<code>OT-…-BAL</code>), not sent to the client.</li></ul>
+        </div>
+      </div>
+
+      <div class="sc" id="D5">
+        <div class="hd"><span class="id">D5</span> Double click doesn't send two invoices <span class="tags"><span class="money">money</span></span></div>
+        <div class="bd">
+          <div class="lbl">Do</div>
+          <ol><li>Open the Team view in two tabs while the deposit is unsent. Click <b>Send deposit invoice</b> in both.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li>One tab succeeds; the other says <em>"The deposit invoice was already sent"</em>.</li><li>Only one <code>OT-…-DEP</code> invoice in PayPal.</li></ul>
+        </div>
+      </div>
+
+      <div class="sc" id="D6">
+        <div class="hd"><span class="id">D6</span> Payouts stay locked until the deposit clears <span class="tags"><span class="must">must pass</span></span></div>
+        <div class="bd">
+          <p class="meta">Guardrail: <code>canPay()</code> → "Client deposit not received" (R15)</p>
+          <div class="lbl">Do</div>
+          <ol><li><code>db:seed:fresh</code> → verify a post (V1) so a payout exists → open <b>Approvals</b>.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li>Deposit column <em>"Not received"</em>; row shows <em>"Locked until the deposit clears"</em>; no checkbox, no Approve.</li><li>After D2/D3 the same row gets <b>Approve</b>.</li></ul>
+        </div>
+      </div>
+
+      <h2>A — Approval queue and payouts</h2>
+
+      <div class="sc" id="A1">
+        <div class="hd"><span class="id">A1</span> Approve one <span class="tags"><span class="must">must pass</span></span></div>
+        <div class="bd">
+          <p class="meta">Data: <code>db:seed</code></p>
+          <div class="lbl">Do</div>
+          <ol><li><b>Approvals</b> → @jasonlifts → <b>Approve</b>.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li>Notice <em>"1 approved and scheduled"</em>. Row now has <b>Send now</b> and <em>Edit or reject</em>.</li><li>Row shows $1,200.00, fee $1,200.00, <em>"Post checklist · Mei Tan"</em>, deposit Received, Oct 29.</li></ul>
+          <div class="watch">Regression: if it says <em>"Payout not found"</em>, the row button lost its payout id (React drops <code>name/value</code> on a button with a function <code>formAction</code>).</div>
+        </div>
+      </div>
+
+      <div class="sc" id="A2">
+        <div class="hd"><span class="id">A2</span> Batch approve</div>
+        <div class="bd">
+          <div class="lbl">Do</div>
+          <ol><li>Click <b>Approve &amp; schedule selected</b> with nothing ticked.</li><li>Tick two payouts → click it again.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li>Nothing ticked: <em>"Select at least one payout"</em>.</li><li>Two ticked: <em>"2 approved and scheduled"</em>.</li></ul>
+        </div>
+      </div>
+
+      <div class="sc" id="A3">
+        <div class="hd"><span class="id">A3</span> Acting-as is recorded</div>
+        <div class="bd">
+          <div class="lbl">Do</div>
+          <ol><li>Switch <b>Acting as</b> to Hana Aziz, approve a payout, open the Audit log.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li><code>payout.approved</code> by <b>Hana Aziz</b>.</li></ul>
+        </div>
+      </div>
+
+      <div class="sc" id="A4">
+        <div class="hd"><span class="id">A4</span> Edit or reject page</div>
+        <div class="bd">
+          <div class="lbl">Do</div>
+          <ol><li>Click <em>Edit or reject</em> on a row.</li><li>Visit <code>/approvals/not-a-uuid</code>.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li>Breadcrumb, title <em>"Edit payout · …"</em>, contract fee and verification shown, amount and date pre-filled.</li><li>The bad id shows a 404 page, not a crash.</li></ul>
+        </div>
+      </div>
+
+      <div class="sc" id="A5">
+        <div class="hd"><span class="id">A5</span> Lower the amount → back to approval <span class="tags"><span class="must">must pass</span></span></div>
+        <div class="bd">
+          <p class="meta">R26 · Code: <code>validatePayoutEdit()</code></p>
+          <div class="lbl">Do</div>
+          <ol><li>On an <b>approved</b> payout: amount <code>1,100</code>, reason "Agreed discount", Save.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li><em>"Payout updated. Edited payouts need approval again."</em></li><li>Row is $1,100.00 with <b>Approve</b> again (not Send now).</li><li>Audit log <code>payout.edited</code> with before/after amounts and <code>approvalReset: true</code>.</li></ul>
+        </div>
+      </div>
+
+      <div class="sc" id="A6">
+        <div class="hd"><span class="id">A6</span> Can't raise above the contract fee <span class="tags"><span class="must">must pass</span></span></div>
+        <div class="bd">
+          <div class="lbl">Do</div>
+          <ol><li>Amount <code>1,300</code> (fee $1,200) with a reason, Save.</li><li>Amount <code>12.345</code>, Save.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li><em>"Amount is above the contract fee"</em>; nothing changes.</li><li><em>"Enter the amount like 1,200.00"</em>.</li></ul>
+        </div>
+      </div>
+
+      <div class="sc" id="A7">
+        <div class="hd"><span class="id">A7</span> Date rules and reason required</div>
+        <div class="bd">
+          <div class="lbl">Do</div>
+          <ol><li>Set the date to yesterday, Save.</li><li>Clear the reason, Save.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li><em>"Payout date can't be in the past"</em> (today is the agency's date, UTC+8).</li><li>Empty reason: the browser blocks the submit (required field).</li></ul>
+        </div>
+      </div>
+
+      <div class="sc" id="A8">
+        <div class="hd"><span class="id">A8</span> Send now → paid via webhook <span class="tags"><span class="must">must pass</span><span class="money">money</span></span></div>
+        <div class="bd">
+          <p class="meta">Needs: tunnel · Code: <code>sendPayout()</code> → <code>createPayout()</code></p>
+          <div class="lbl">Do</div>
+          <ol><li>On an approved payout click <b>Send now</b>.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li><em>"Sent to PayPal. It turns paid when PayPal confirms."</em>; row shows <em>"Sent via PayPal"</em>.</li><li>Within ~1 min the row leaves the queue; assignment shows <b>Paid</b> in the Team table.</li><li>Audit log: <code>payout.sending</code>, <code>payout.sent</code>, then <code>payout.paid</code> by <code>paypal</code>.</li></ul>
+          <div class="watch">If it fails with <em>SELF_PAY_NOT_ALLOWED</em>, <code>SANDBOX_CREATOR_EMAIL</code> is the business account. Use a personal one and reseed.</div>
+        </div>
+      </div>
+
+      <div class="sc" id="A9">
+        <div class="hd"><span class="id">A9</span> Two clicks pay only once <span class="tags"><span class="must">must pass</span><span class="money">money</span></span></div>
+        <div class="bd">
+          <p class="meta">Row lock + <code>sender_batch_id</code> = payout id</p>
+          <div class="lbl">Do</div>
+          <ol><li>Open Approvals in two tabs on the same approved payout. Click <b>Send now</b> in both, quickly.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li>One tab sends; the other says <em>"Already sent"</em>.</li><li>Exactly one batch in the PayPal dashboard.</li></ul>
+        </div>
+      </div>
+
+      <div class="sc" id="A10">
+        <div class="hd"><span class="id">A10</span> Reject and hold</div>
+        <div class="bd">
+          <div class="lbl">Do</div>
+          <ol><li>Edit or reject → Reject with reason "Wrong product shown".</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li><em>"Payout rejected and held. The reason is in the audit log."</em> Row leaves the queue.</li><li>Team table shows the assignment as <b>Held</b> (red). Audit log <code>payout.rejected</code> with the reason.</li></ul>
+        </div>
+      </div>
+
+      <div class="sc" id="A11">
+        <div class="hd"><span class="id">A11</span> A sent payout can't be edited</div>
+        <div class="bd">
+          <div class="lbl">Do</div>
+          <ol><li>After A8, open <code>/approvals/&lt;that payout id&gt;</code> directly.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li><em>"This payout was already sent, so it can't be changed."</em> No forms.</li></ul>
+        </div>
+      </div>
+
+      <div class="sc" id="A12">
+        <div class="hd"><span class="id">A12</span> Failed payout shows PayPal's reason</div>
+        <div class="bd">
+          <div class="lbl">Do (optional)</div>
+          <ol><li>Temporarily set <code>SANDBOX_CREATOR_EMAIL</code> to the business account, reseed, approve, Send now.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li>After the webhook: row shows <em>"Failed · SELF_PAY_NOT_ALLOWED"</em> (PayPal's error name, not just <em>FAILED</em>).</li></ul>
+          <div class="watch">Put the email back and restart dev afterwards.</div>
+        </div>
+      </div>
+
+      <h2>V — Influencer post proof and checklist</h2>
+
+      <div class="sc" id="V1">
+        <div class="hd"><span class="id">V1</span> Verify a post → payout queued <span class="tags"><span class="must">must pass</span></span></div>
+        <div class="bd">
+          <p class="meta">Data: <code>db:seed</code> · @mira.travels · Code: <code>submitPostCheck()</code></p>
+          <div class="lbl">Do</div>
+          <ol><li>Team table → @mira.travels → <b>Verify post</b>.</li><li>Upload a small PNG, tick all 3, <b>Mark verified</b>.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li>Brief shows tag, hashtags and posting window.</li><li><em>"Post verified. The payout is waiting for approval."</em>; green box; the screenshot shows on the left.</li><li>Approvals lists @mira.travels at $2,000.00 with <em>"Post checklist · Mei Tan"</em>.</li></ul>
+        </div>
+      </div>
+
+      <div class="sc" id="V2">
+        <div class="hd"><span class="id">V2</span> Missing tick blocks verify <span class="tags"><span class="must">must pass</span></span></div>
+        <div class="bd">
+          <div class="lbl">Do</div>
+          <ol><li>Upload, tick only 2 items, <b>Mark verified</b>.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li><em>"Tick every item to verify. Missing: Posted inside the window"</em>. Nothing saved, no payout.</li></ul>
+        </div>
+      </div>
+
+      <div class="sc" id="V3">
+        <div class="hd"><span class="id">V3</span> Hold needs a note</div>
+        <div class="bd">
+          <div class="lbl">Do</div>
+          <ol><li>Upload, tick 1 item, empty note, <b>Hold with note</b>.</li><li>Again with note "No #ad".</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li>Empty: <em>"A note is required to hold"</em>.</li><li>With note: <em>"Post held. No payout until a new screenshot passes."</em>; red <em>"Held. No #ad…"</em>; no payout in Approvals.</li></ul>
+        </div>
+      </div>
+
+      <div class="sc" id="V4">
+        <div class="hd"><span class="id">V4</span> Held post can be re-checked</div>
+        <div class="bd">
+          <div class="lbl">Do</div>
+          <ol><li>After V3, upload a new screenshot, tick all 3, Mark verified.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li>Verified; payout queued; the new screenshot is shown.</li></ul>
+        </div>
+      </div>
+
+      <div class="sc" id="V5">
+        <div class="hd"><span class="id">V5</span> Late verification is scheduled for today</div>
+        <div class="bd">
+          <p class="meta">Covered by <code>verification.int.test.ts</code>; manual check optional</p>
+          <div class="lbl">Expect</div>
+          <ul><li>If the contract payout date has passed, the queued payout's date is <b>today</b>, never in the past.</li></ul>
+        </div>
+      </div>
+
+      <div class="sc" id="V6">
+        <div class="hd"><span class="id">V6</span> Verified post shows no form</div>
+        <div class="bd">
+          <div class="lbl">Do</div>
+          <ol><li>Open <b>Verify post</b> for @jasonlifts (already verified in <code>db:seed</code>).</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li>Green <em>"Post verified. A $1,200.00 payout is in the approval queue."</em> + <b>Open approvals</b>. No upload form.</li></ul>
+        </div>
+      </div>
+
+      <h2>F — Freelancer invoice</h2>
+
+      <div class="sc" id="F1">
+        <div class="hd"><span class="id">F1</span> Matching invoice → payout queued <span class="tags"><span class="must">must pass</span></span></div>
+        <div class="bd">
+          <p class="meta">Data: <code>db:seed</code> · Daniel Lim · Code: <code>submitInvoice()</code> + <code>compareInvoice()</code></p>
+          <div class="lbl">Do</div>
+          <ol><li>Team table → Daniel Lim → <b>Invoice</b>.</li><li>Small PDF; payee <code>Daniel Lim</code>; the creator PayPal email; deliverable <code>2 × 30s product video edits</code>; amount <code>1,000.00</code>. <b>Check against contract</b>.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li><em>"Invoice checked against the contract."</em>; green <em>"Invoice matches. A $1,000.00 payout…"</em>; table all <em>Yes</em>.</li></ul>
+        </div>
+      </div>
+
+      <div class="sc" id="F2">
+        <div class="hd"><span class="id">F2</span> Over-invoice is held <span class="tags"><span class="must">must pass</span></span></div>
+        <div class="bd">
+          <div class="lbl">Do</div>
+          <ol><li>Same as F1 but amount <code>1,200.00</code>.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li>Red <em>"Payout held…"</em>; Amount row <em>$1,000.00</em> vs <b>$1,200.00</b>, <em>No</em>. No payout in Approvals. Team table: Held.</li></ul>
+        </div>
+      </div>
+
+      <div class="sc" id="F3">
+        <div class="hd"><span class="id">F3</span> Override pays the fee, not the invoice <span class="tags"><span class="must">must pass</span></span></div>
+        <div class="bd">
+          <div class="lbl">Do</div>
+          <ol><li>After F2: reason "Client approved an extra revision" → <b>Override with reason</b>.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li><em>"Override logged. The payout is waiting for approval."</em></li><li>Approvals: Daniel at <b>$1,000.00</b> (never $1,200), <em>"Invoice override · Mei Tan"</em>.</li><li>Audit log <code>invoice.override</code> with reason, invoiced and payout amounts.</li></ul>
+        </div>
+      </div>
+
+      <div class="sc" id="F4">
+        <div class="hd"><span class="id">F4</span> Under-invoice override pays the lower amount</div>
+        <div class="bd">
+          <div class="lbl">Do</div>
+          <ol><li>Reseed. Invoice amount <code>900</code> → held → override with a reason.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li>Payout is <b>$900.00</b>.</li></ul>
+        </div>
+      </div>
+
+      <div class="sc" id="F5">
+        <div class="hd"><span class="id">F5</span> Other mismatches are flagged</div>
+        <div class="bd">
+          <div class="lbl">Do</div>
+          <ol><li>Wrong payee name, or a different PayPal email, or a different deliverable.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li>That row is red with both values; invoice held.</li></ul>
+          <div class="watch">A different PayPal email being "Yes" is a fail: paying the wrong account is the costliest mistake.</div>
+        </div>
+      </div>
+
+      <div class="sc" id="F6">
+        <div class="hd"><span class="id">F6</span> Bad amount, missing reason</div>
+        <div class="bd">
+          <div class="lbl">Do</div>
+          <ol><li>Amount <code>12.345</code>.</li><li>On a held invoice, Override with an empty reason.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li><em>"Enter the invoiced amount like 1,200.00"</em>.</li><li>Browser blocks the empty reason (required).</li></ul>
+        </div>
+      </div>
+
+      <h2>U — Uploads</h2>
+
+      <div class="sc" id="U1">
+        <div class="hd"><span class="id">U1</span> File over 4 MB blocked in the browser <span class="tags"><span class="must">must pass</span></span></div>
+        <div class="bd">
+          <p class="meta">Code: <code>&lt;FileInput&gt;</code></p>
+          <div class="lbl">Do</div>
+          <ol><li>Pick a 5–7 MB image on Verify post (and on Invoice) → submit.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li>Browser bubble <em>"The file is larger than 4 MB. Choose a smaller one."</em>; nothing is sent.</li></ul>
+        </div>
+      </div>
+
+      <div class="sc" id="U2">
+        <div class="hd"><span class="id">U2</span> Retry with a small file, same page <span class="tags"><span class="must">must pass</span></span></div>
+        <div class="bd">
+          <div class="lbl">Do</div>
+          <ol><li>Right after U1, without reloading, pick a small file and submit.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li>Works normally (verified / invoice checked).</li></ul>
+          <div class="watch">Regression: before the fix a &gt;5 MB file crashed the page ("Body exceeded 5mb limit") and every retry failed until reload.</div>
+        </div>
+      </div>
+
+      <div class="sc" id="U3">
+        <div class="hd"><span class="id">U3</span> Between 4 and 20 MB with the browser check bypassed</div>
+        <div class="bd">
+          <div class="lbl">Do (dev)</div>
+          <ol><li>Pick a 7 MB file, then in DevTools console: <code>document.querySelector('input[type=file]').form.noValidate = true</code>; submit.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li>Notice <em>"The file is larger than 4 MB"</em>; page still works. No error overlay.</li></ul>
+        </div>
+      </div>
+
+      <div class="sc" id="U4">
+        <div class="hd"><span class="id">U4</span> Wrong file types refused <span class="tags"><span class="must">must pass</span></span></div>
+        <div class="bd">
+          <div class="lbl">Do</div>
+          <ol><li>The picker hides other types, so <b>drag the file onto the Choose File button</b> (or use the picker's All Files option): upload an <code>.svg</code> as post proof; a <code>.txt</code> as invoice; a PDF as post proof.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li>Post proof: <em>"Upload a PNG, JPEG or WebP image"</em>. Invoice: <em>"Upload a PDF, PNG, JPEG or WebP file"</em>.</li></ul>
+          <div class="watch">Security check: an SVG that gets stored could run script when served back.</div>
+        </div>
+      </div>
+
+      <div class="sc" id="U5">
+        <div class="hd"><span class="id">U5</span> Uploaded files are served safely</div>
+        <div class="bd">
+          <div class="lbl">Do</div>
+          <ol><li>Right-click the verified screenshot → copy image address → <code>curl -I &lt;url&gt;</code>.</li><li><code>curl -I localhost:3000/api/submissions/not-a-uuid/file</code></li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li><code>Content-Type: image/png</code>, <code>X-Content-Type-Options: nosniff</code>, <code>Cache-Control: private, no-store</code>.</li><li>Bad id: <code>404</code>.</li></ul>
+        </div>
+      </div>
+
+      <h2>W — PayPal webhook</h2>
+
+      <div class="sc" id="W1">
+        <div class="hd"><span class="id">W1</span> Unsigned requests are refused <span class="tags"><span class="must">must pass</span></span></div>
+        <div class="bd">
+          <div class="lbl">Do</div>
+          <pre><code>curl -s -X POST localhost:3000/api/webhooks/paypal -d 'not json'
+curl -s -X POST localhost:3000/api/webhooks/paypal \
+  -d '{"id":"WH-FAKE","event_type":"INVOICING.INVOICE.PAID","resource":{"id":"INV2-X"}}'</code></pre>
+          <div class="lbl">Expect</div>
+          <ul><li>Bad JSON → <code>400</code>. Fake event → <code>401 Signature check failed</code>. Nothing changes in the app.</li></ul>
+          <div class="watch">A 200 for the fake event means anyone could mark invoices paid. Hard fail.</div>
+        </div>
+      </div>
+
+      <div class="sc" id="W2">
+        <div class="hd"><span class="id">W2</span> A resent event is processed once <span class="tags"><span class="money">money</span></span></div>
+        <div class="bd">
+          <div class="lbl">Do</div>
+          <ol><li>developer.paypal.com → Event logs / Webhooks events → pick a delivered <code>PAYMENT.PAYOUTS-ITEM.SUCCEEDED</code> → <b>Resend</b>.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li>Dev log: <code>POST /api/webhooks/paypal 200</code> with outcome <code>duplicate</code>. No second audit entry.</li></ul>
+        </div>
+      </div>
+
+      <div class="sc" id="W3">
+        <div class="hd"><span class="id">W3</span> Out-of-order and unknown events</div>
+        <div class="bd">
+          <p class="meta">Covered by <code>webhooks.int.test.ts</code>; no manual step</p>
+          <div class="lbl">Expect</div>
+          <ul><li>A late FAILED after SUCCEEDED keeps the payout paid. Events for unknown invoices/payouts are ignored. Batch events don't change anything.</li></ul>
+        </div>
+      </div>
+
+      <h2>C — Daily payout run</h2>
+
+      <div class="sc" id="C1">
+        <div class="hd"><span class="id">C1</span> Needs the cron secret <span class="tags"><span class="must">must pass</span></span></div>
+        <div class="bd">
+          <div class="lbl">Do</div>
+          <pre><code>curl -s -X POST localhost:3000/api/payouts/run-due
+curl -s -X POST -H "Authorization: Bearer wrong" localhost:3000/api/payouts/run-due</code></pre>
+          <div class="lbl">Expect</div>
+          <ul><li>Both <code>{"error":"Unauthorized"}</code> (401). Nothing sent.</li></ul>
+        </div>
+      </div>
+
+      <div class="sc" id="C2">
+        <div class="hd"><span class="id">C2</span> Nothing due → nothing sent</div>
+        <div class="bd">
+          <div class="lbl">Do</div>
+          <pre><code>curl -s -X POST -H "Authorization: Bearer $(grep ^CRON_SECRET= .env | cut -d= -f2-)" \
+  localhost:3000/api/payouts/run-due</code></pre>
+          <div class="lbl">Expect</div>
+          <ul><li><code>{"today":"…","invoicesSettled":0,"results":[]}</code> while all payout dates are in the future.</li></ul>
+        </div>
+      </div>
+
+      <div class="sc" id="C3">
+        <div class="hd"><span class="id">C3</span> Sends an approved payout on its date <span class="tags"><span class="must">must pass</span><span class="money">money</span></span></div>
+        <div class="bd">
+          <div class="lbl">Do</div>
+          <ol><li><code>db:seed</code> → edit @jasonlifts' date to <b>today</b> with a reason → Approve.</li><li>Run the C2 curl.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li><code>"results":[{"id":"…","result":{"ok":true}}]</code>; payout turns paid via webhook; audit actor <code>daily run</code>.</li></ul>
+        </div>
+      </div>
+
+      <div class="sc" id="C4">
+        <div class="hd"><span class="id">C4</span> Never sends an unapproved payout <span class="tags"><span class="must">must pass</span></span></div>
+        <div class="bd">
+          <div class="lbl">Do</div>
+          <ol><li>Edit a payout's date to today but <b>don't approve</b>. Run the C2 curl.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li>Not in <code>results</code>; still <em>awaiting approval</em> in the queue.</li></ul>
+          <div class="watch">Any unapproved payout sent here breaks "every payout needs a person's approval". Hard fail.</div>
+        </div>
+      </div>
+
+      <div class="sc" id="C5">
+        <div class="hd"><span class="id">C5</span> Settles a paid invoice the webhook missed <span class="tags"><span class="money">money</span></span></div>
+        <div class="bd">
+          <div class="lbl">Do</div>
+          <ol><li><code>db:seed:fresh</code> → send deposit → pay as client → <b>don't</b> click Check payment → run the C2 curl.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li><code>"invoicesSettled":1</code> (or 0 if the webhook already did it) and the green banner on the Team view.</li></ul>
+        </div>
+      </div>
+
+      <h2>L — Audit log</h2>
+
+      <div class="sc" id="L1">
+        <div class="hd"><span class="id">L1</span> Every step is logged with who <span class="tags"><span class="must">must pass</span></span></div>
+        <div class="bd">
+          <div class="lbl">Do</div>
+          <ol><li>After running D, V, F and A cards: campaign → <b>Audit log</b>.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul>
+            <li>Newest first. Entries for <code>invoice.created/sent/paid</code>, <code>post.verified/held</code>, <code>invoice.matched/held/override</code>, <code>payout.queued/approved/edited/rejected/sending/sent/paid</code>.</li>
+            <li>Actor is the person picked in <b>Acting as</b>, <code>paypal</code> for webhook/status-check changes, <code>daily run</code> for C3.</li>
+            <li>Times in Kuala Lumpur time.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="sc" id="L2">
+        <div class="hd"><span class="id">L2</span> Readable details</div>
+        <div class="bd">
+          <div class="lbl">Expect</div>
+          <ul><li>Amounts in dollars (<em>amountCents: $1,000.00</em>); reasons shown verbatim; ids hidden.</li><li>Empty campaign: <em>"Nothing logged yet."</em></li></ul>
+        </div>
+      </div>
+
+      <h2>G — Guardrails end to end</h2>
+
+      <div class="sc" id="G1">
+        <div class="hd"><span class="id">G1</span> Deposit flag re-checked at send time <span class="tags"><span class="must">must pass</span></span></div>
+        <div class="bd">
+          <p class="meta">Covered by <code>payouts.int.test.ts</code>; manual check optional</p>
+          <div class="lbl">Do (optional)</div>
+          <ol><li>Approve a payout, then <code>docker compose exec db psql -U ontrack ontrack -c "update campaigns set deposit_cleared=false"</code>, then <b>Send now</b>.</li></ol>
+          <div class="lbl">Expect</div>
+          <ul><li><em>"Client deposit not received"</em>; no PayPal call.</li></ul>
+        </div>
+      </div>
+
+      <div class="sc" id="G2">
+        <div class="hd"><span class="id">G2</span> One payout per assignment</div>
+        <div class="bd">
+          <div class="lbl">Expect</div>
+          <ul><li>After a payout is paid, the assignment can't be verified or invoiced again (no form shown), and no second payout row appears in Approvals.</li></ul>
+        </div>
+      </div>
+
+      <h2>X — Look and feel</h2>
+
+      <div class="sc" id="X1">
+        <div class="hd"><span class="id">X1</span> Buttons and layout</div>
+        <div class="bd">
+          <div class="lbl">Expect</div>
+          <ul><li>Outline buttons (Send now, Create balance draft, Check payment, Open approvals) have a visible border.</li><li>Approvals table scrolls sideways on a narrow window instead of squashing.</li><li>Zinc greys, thin borders, no gradients or emoji (prototype style).</li></ul>
+        </div>
+      </div>
+
+      <script>
+        const cards = Array.from(document.querySelectorAll(".sc"));
+        const KEY = "ontrack.testplan";
+        let state = {};
+        try { state = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch { state = {}; }
+
+        function save() {
+          try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {}
+        }
+        function paint() {
+          let done = 0;
+          const failed = [];
+          for (const c of cards) {
+            const v = state[c.id]?.mark;
+            c.dataset.state = v || "";
+            if (v) done++;
+            if (v === "fail") failed.push(c.id);
+            c.querySelectorAll("input[type=radio]").forEach((r) => { r.checked = r.value === v; });
+            const note = c.querySelector("input[type=text]");
+            if (note && document.activeElement !== note) note.value = state[c.id]?.note || "";
+          }
+          document.getElementById("done").textContent = done;
+          document.getElementById("total").textContent = cards.length;
+          document.getElementById("fill").style.width = (done / cards.length) * 100 + "%";
+          document.getElementById("fails").textContent = failed.length ? "failing: " + failed.join(", ") : "";
+        }
+        function resetAll() { state = {}; save(); paint(); }
+
+        for (const c of cards) {
+          const marks = document.createElement("div");
+          marks.className = "marks";
+          marks.innerHTML =
+            `<label><input type="radio" name="m-${c.id}" value="pass"> Pass</label>` +
+            `<label><input type="radio" name="m-${c.id}" value="fail"> Fail</label>` +
+            `<input type="text" placeholder="Note (what happened)" aria-label="Note for ${c.id}">`;
+          c.querySelector(".bd").appendChild(marks);
+          marks.addEventListener("change", (e) => {
+            if (e.target.type !== "radio") return;
+            state[c.id] = { ...state[c.id], mark: e.target.value };
+            save();
+            paint();
+          });
+          marks.querySelector("input[type=text]").addEventListener("input", (e) => {
+            state[c.id] = { ...state[c.id], note: e.target.value };
+            save();
+          });
+        }
+        paint();
+      </script>
+    </main>
+  </body>
+</html>

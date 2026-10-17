@@ -53,3 +53,11 @@ export async function getInvoiceViewUrl(pp: PayPalClient, invoiceId: string): Pr
     const inv = await pp.request<{ detail?: {metadata?: { recipient_view_url?: string } } }>("GET", `/v2/invoicing/invoices/${invoiceId}`);
     return inv.detail?.metadata?.recipient_view_url ?? null;
 }
+// Asking PayPal directly: the backup for when the INVOICING.INVOICE.PAID webhook never arrives.
+export async function getInvoiceStatus(pp: PayPalClient, invoiceId: string): Promise<string> {
+    const inv = await pp.request<{ status: string }>("GET", `/v2/invoicing/invoices/${invoiceId}`);
+    return inv.status;
+}
+
+// PARTIALLY_PAID and PAYMENT_PENDING are not paid: the deposit lock stays on.
+export const isPaidStatus = (status: string): boolean => status === "PAID" || status === "MARKED_AS_PAID";

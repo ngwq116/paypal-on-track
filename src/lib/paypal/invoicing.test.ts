@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import type { PayPalClient } from "./client";
 import { createInvoice } from "./invoicing";
-import { getInvoiceViewUrl, invoiceNumberFor } from "./invoicing";
+import { getInvoiceStatus, getInvoiceViewUrl, invoiceNumberFor, isPaidStatus } from "./invoicing";
 
 describe("createInvoice", () => {
   it("sends the item's unit_amount with currency_code USD and a 2-decimal value", async () => {
@@ -40,5 +40,20 @@ describe("getInvoiceViewUrl", () => {
     expect(await getInvoiceViewUrl(pp, "INV2-1")).toBe("https://www.sandbox.paypal.com/invoice/p/#INV2-1");
     expect(await getInvoiceViewUrl(pp, "INV2-2")).toBeNull();
     expect(request.mock.calls[0][1]).toBe("/v2/invoicing/invoices/INV2-1");
+  });
+});
+describe("getInvoiceStatus / isPaidStatus", () => {
+  it("reads the invoice status from PayPal", async () => {
+    const request = vi.fn().mockResolvedValueOnce({ status: "PAID" });
+    const pp = { request } as unknown as PayPalClient;
+    expect(await getInvoiceStatus(pp, "INV2-1")).toBe("PAID");
+    expect(request.mock.calls[0]).toEqual(["GET", "/v2/invoicing/invoices/INV2-1"]);
+  });
+  it("counts only fully paid invoices as paid", () => {
+    expect(isPaidStatus("PAID")).toBe(true);
+    expect(isPaidStatus("MARKED_AS_PAID")).toBe(true);
+    expect(isPaidStatus("PARTIALLY_PAID")).toBe(false);
+    expect(isPaidStatus("PAYMENT_PENDING")).toBe(false);
+    expect(isPaidStatus("SENT")).toBe(false);
   });
 });

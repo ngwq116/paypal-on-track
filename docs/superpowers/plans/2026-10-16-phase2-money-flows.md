@@ -3273,6 +3273,7 @@ import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { agencyToday } from "@/lib/domain/today";
 import { payPalFromEnv } from "@/lib/paypal/client";
+import { syncSentInvoices } from "@/lib/services/client-invoices";
 import { runDuePayouts } from "@/lib/services/payouts";
 
 function authorized(req: Request): boolean {
@@ -3286,7 +3287,10 @@ function authorized(req: Request): boolean {
 export async function POST(req: Request) {
   if (!authorized(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const today = agencyToday();
-  return NextResponse.json({ today, results: await runDuePayouts(payPalFromEnv(), today) });
+  const pp = payPalFromEnv();
+  // First settle invoices whose "paid" webhook never arrived, so a cleared deposit doesn't block payouts.
+  const invoicesSettled = await syncSentInvoices(pp);
+  return NextResponse.json({ today, invoicesSettled, results: await runDuePayouts(pp, today) });
 }
 ```
 
@@ -3409,3 +3413,31 @@ git commit -m "feat: daily payout run route and campaign audit log; phase 2 chec
 | **3: AI + views + deploy** | Oct 26–Nov 1 | ContractExtractor and InvoiceMatcher with Claude Haiku 5.5 filling the Task 9 fields (R1–R3, R11); eval set (Q7); colours, side panel, polling (R13, R14, R18); drag to reschedule (R19); deploy to Render with the webhook URL and a daily Cron Job calling `/api/payouts/run-due` |
 | **4: Polish** | Nov 2–8 | Eval targets, retry for failed payouts (needs a new `sender_batch_id`), "Request corrected invoice" email, reset-demo button, README, R24 / R20 / R22 if time |
 | **Submit** | Nov 9–11 | Video (≤ 2:50), Devpost text, submit Nov 11 |
+
+---
+
+## Phase 2 notes
+
+**Webhook resource shapes (real sandbox, Oct 17)**
+- `PAYMENT.PAYOUTS-ITEM.*`: `resource.payout_item.sender_item_id` (= our payout id), `resource.payout_batch_id`, `resource.transaction_status`. A failed item also carries `resource.errors.name` (e.g. `SELF_PAY_NOT_ALLOWED`); `interpretEvent` now returns it as `reason` and it is stored as the payout's `statusReason`.
+- `PAYMENT.PAYOUTSBATCH.*` (PROCESSING, SUCCESS, DENIED) and `INVOICING.INVOICE.CREATED` / `SENT` also arrive; they are recorded in `webhook_events` and ignored. Only item events settle a payout.
+
+**What PayPal rejected**
+- `SELF_PAY_NOT_ALLOWED`: `SANDBOX_CREATOR_EMAIL` was the sending business account. Payees must be a different (personal) sandbox account.
+- The dashboard webhook simulator can't be signature-verified; test with real sandbox actions through a cloudflared tunnel.
+
+**Timing**
+- Payout: item `SUCCEEDED` webhook ~30–45 s after Send now; batch `SUCCESS` a few seconds later.
+- Invoice `CREATED` / `SENT` webhooks: ~10 s.
+- `INVOICING.INVOICE.PAID` was **never generated** for a sandbox invoice that PayPal shows as `PAID` (checked with `GET /v1/notifications/webhooks-events`). Added a fallback: `checkInvoicePayment()` (a **Check payment** button on the deposit panel) and `syncSentInvoices()` (called by `/api/payouts/run-due` before payouts). Both settle through `markInvoicePaid()`, the same function the webhook uses, so effects are identical and a second path is a no-op.
+
+**Changes from the plan's code**
+- React drops `name`/`value` on a button whose `formAction` is a function: the approval queue's row buttons bind the payout id (`approveOne.bind(null, payout.id)`, same for `sendNow`).
+- `buttonVariants()` used outside `<Button>` skipped tailwind-merge, so outline buttons lost their border; it now returns merged classes.
+- The Audit log link sits under the campaign subtitle, not between breadcrumb and title.
+- A file over the Server Action body limit (was 5 MB) crashed the page ("Body exceeded 5mb limit") before `checkUpload()` ran, and the broken page kept failing until reloaded. Now `<FileInput>` blocks files over 4 MB in the browser, and `bodySizeLimit` is 20 MB so a bypassed check still gets the "larger than 4 MB" notice.
+
+**For Phase 3**
+- Add `CRON_SECRET` to `.env` and to Render; the Render Cron Job calls `POST /api/payouts/run-due` with `Authorization: Bearer <CRON_SECRET>`.
+- On deploy, point the PayPal webhook at the Render URL (no tunnel). Keep the Check payment fallback.
+- After a failed check or hold, forms reset (redirect + notice), so the screenshot must be chosen again. Fine for now; revisit if it annoys in the demo.

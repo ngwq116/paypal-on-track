@@ -49,10 +49,23 @@ describe("interpretEvent", () => {
   it("reads payout items by sender_item_id, with the batch id as fallback", () => {
     expect(
       interpretEvent({ id: "3", event_type: "PAYMENT.PAYOUTS-ITEM.SUCCEEDED", resource: { payout_batch_id: "B1", payout_item: { sender_item_id: "p-1" } } }),
-    ).toEqual({ kind: "payout_item", outcome: "paid", payoutId: "p-1", batchId: "B1", status: "SUCCEEDED" });
+    ).toEqual({ kind: "payout_item", outcome: "paid", payoutId: "p-1", batchId: "B1", status: "SUCCEEDED", reason: "SUCCEEDED" });
     expect(interpretEvent({ id: "4", event_type: "PAYMENT.PAYOUTS-ITEM.UNCLAIMED", resource: { payout_batch_id: "B2" } })).toEqual({
-      kind: "payout_item", outcome: "failed", payoutId: null, batchId: "B2", status: "UNCLAIMED",
+      kind: "payout_item", outcome: "failed", payoutId: null, batchId: "B2", status: "UNCLAIMED", reason: "UNCLAIMED",
     });
+  });
+  it("uses PayPal's error name as the reason when the item failed with one (real sandbox payload)", () => {
+    const e = interpretEvent({
+      id: "5",
+      event_type: "PAYMENT.PAYOUTS-ITEM.FAILED",
+      resource: {
+        transaction_status: "FAILED",
+        payout_batch_id: "3E2A569JME6GW",
+        payout_item: { sender_item_id: "p-2" },
+        errors: { name: "SELF_PAY_NOT_ALLOWED", message: "Payment to self is not allowed." },
+      },
+    });
+    expect(e).toMatchObject({ outcome: "failed", payoutId: "p-2", status: "FAILED", reason: "SELF_PAY_NOT_ALLOWED" });
   });
   it("ignores other events and events it can't match", () => {
     expect(interpretEvent({ id: "5", event_type: "CHECKOUT.ORDER.APPROVED", resource: {} })).toEqual({ kind: "ignored" });

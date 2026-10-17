@@ -41,7 +41,7 @@ export const createPayPalClient = (cfg: PayPalConfig, fetchImpl: typeof fetch = 
     const res = await fetchImpl(`${cfg.baseUrl}${path}`, {
       method,
       headers: { Authorization: `Bearer ${await getToken()}`, "Content-Type": "application/json", ...headers },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : typeof body === "string" ? body: JSON.stringify(body)
     });
     // 401 = PayPal rejected the token before processing (revoked or scopes changed).
     // Drop the cache and retry once; payouts stay safe via sender_batch_id idempotency.

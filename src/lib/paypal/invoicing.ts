@@ -42,3 +42,14 @@ export async function createInvoice (
 export async function sendInvoice(pp: PayPalClient, invoiceId: string): Promise<void> {
   await pp.request("POST", `/v2/invoicing/invoices/${invoiceId}/send`, { send_to_recipient: true });
 }
+
+// Stable per campaign + kind, so Paypal rejects an accidental second invoice (<= 25 chars)
+export const invoiceNumberFor = (campaignId: string, kind: "deposit" | "balance"): string => {
+    return `OT-${campaignId.slice(0, 8).toUpperCase()}-${kind === "deposit" ? "DEP": "BAL"}`;
+}
+
+// The payer's link. In the sandbox, open it logged in as the client's personal test account to pay.
+export async function getInvoiceViewUrl(pp: PayPalClient, invoiceId: string): Promise<string | null> {
+    const inv = await pp.request<{ detail?: {metadata?: { recipient_view_url?: string } } }>("GET", `/v2/invoicing/invoices/${invoiceId}`);
+    return inv.detail?.metadata?.recipient_view_url ?? null;
+}

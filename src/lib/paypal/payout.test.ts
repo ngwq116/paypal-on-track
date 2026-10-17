@@ -66,6 +66,16 @@ describe("createPayPalClient", () => {
     await expect(pp.request("POST", "/v1/payments/payouts", {})).rejects.toMatchObject({ status: 401 });
     expect(fetchImpl).toHaveBeenCalledTimes(4);
   });
+
+  it("sends a string body as-is (webhook verification needs the raw event)", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(json({ access_token: "tok", expires_in: 3600 }))
+      .mockResolvedValueOnce(json({ ok: true }));
+    const pp = createPayPalClient(cfg, fetchImpl as unknown as typeof fetch);
+    await pp.request("POST", "/x", '{"a":1.0}');
+    expect(fetchImpl.mock.calls[1][1].body).toBe('{"a":1.0}');
+  });
 });
 
 describe("buildPayoutBody", () => {

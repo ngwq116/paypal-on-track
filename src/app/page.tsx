@@ -6,6 +6,9 @@ export default function Home() {
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-8 pt-6 pb-12">
       <h1 className="text-[26px] font-semibold tracking-tight">Campaigns</h1>
+      <a href="/campaigns/new" className="self-start text-sm font-medium text-zinc-700 underline-offset-4 hover:underline">
+        New campaign from a contract
+      </a>
       <Suspense fallback={<p className="text-sm text-zinc-500">Loading campaigns…</p>}>
         <CampaignList />
       </Suspense>

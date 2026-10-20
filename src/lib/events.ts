@@ -1,22 +1,36 @@
+import { formatDay } from "./domain/format";
+import { formatUsd } from "./domain/money";
+
 export interface TimelineInput {
+  campaignId: string;
+  today: string; // agency date, for "overdue"
   client: { id: string; name: string };
   assignments: Array<{
     id: string;
     creatorId: string;
     creatorName: string;
     creatorType: "influencer" | "freelancer";
+    deliverable: string;
     dueDate: string;
     status: "scheduled" | "submitted" | "verified" | "held" | "paid";
     feeCents: number;
+    verified: string; // e.g. "Post checklist · Mei Tan" or "Not verified"
   }>;
-  invoices: Array<{ id: string; kind: "deposit" | "balance"; amountCents: number; dueDate: string; status: "draft" | "sent" | "paid" }>;
+  invoices: Array<{ id: string; kind: "deposit" | "balance"; amountCents: number; dueDate: string; status: "draft" | "sent" | "paid"; paypalInvoiceId: string | null }>;
   payouts: Array<{
     id: string;
     assignmentId: string;
     amountCents: number;
     scheduledFor: string;
     status: "awaiting_approval" | "scheduled" | "payout_sent" | "paid" | "payout_failed" | "held";
+    statusReason: string | null;
   }>;
+}
+
+export interface EventPanelContent {
+  title: string;
+  lines: string[];
+  links: Array<{ href: string; label: string }>;
 }
 
 export interface TimelineResource {
@@ -35,6 +49,8 @@ export interface TimelineEvent {
   kind: "post" | "deliverable" | "invoice" | "payout";
   draggable: boolean;
   resizable: false;
+  refId: string; // the assignment, invoice or payout id
+  panel: EventPanelContent; // R18: what the side panel shows
 }
 
 export function addDays(day: string, n: number): string {
@@ -72,39 +88,63 @@ export function toTimeline(input: TimelineInput): { resources: TimelineResource[
 
   for (const a of input.assignments) {
     const kind = a.creatorType === "influencer" ? "post" : "deliverable";
+    const overdue = (a.status === "scheduled" || a.status === "submitted") && a.dueDate < input.today;
+    const what = kind === "post" ? "Post" : "Deliverable";
     events.push({
       id: `assignment-${a.id}`,
+      refId: a.id,
       resourceId: a.creatorId,
-      name: `${kind === "post" ? "Post" : "Deliverable"} · ${a.status}`,
-      shortName: capitalize(a.status),
+      name: `${what} · ${overdue ? "overdue" : a.status}`,
+      shortName: overdue ? "Overdue" : capitalize(a.status),
       ...day(a.dueDate),
-      eventColor: a.status === "held" ? "red" : kind === "post" ? "violet" : "orange",
+      eventColor: overdue || a.status === "held" ? "red" : kind === "post" ? "violet" : "orange",
       kind,
       draggable: a.status !== "paid",
       resizable: false,
+      panel: {
+        title: `${a.creatorName} · ${a.deliverable}`,
+        lines: [`${what} due ${formatDay(a.dueDate)}`, `Fee ${formatUsd(a.feeCents)}`, `Status: ${overdue ? "overdue" : a.status}`, `Verification: ${a.verified}`],
+        links: [{ href: `/campaigns/${input.campaignId}/assignments/${a.id}`, label: kind === "post" ? "Verify post" : "Check invoice" }],
+      },
     });
   }
 
   for (const inv of input.invoices) {
+    const overdue = inv.status === "sent" && inv.dueDate < input.today;
+    const label = inv.kind === "deposit" ? "Deposit" : "Balance";
     events.push({
       id: `invoice-${inv.id}`,
+      refId: inv.id,
       resourceId: "client",
-      name: `${inv.kind === "deposit" ? "Deposit" : "Balance"} ${usd(inv.amountCents)} · ${inv.status}`,
-      shortName: `${inv.kind === "deposit" ? "Deposit" : "Balance"} ${usd(inv.amountCents)}`,
+      name: `${label} ${usd(inv.amountCents)} · ${overdue ? "overdue" : inv.status}`,
+      shortName: overdue ? "Overdue" : `${label} ${usd(inv.amountCents)}`,
       ...day(inv.dueDate),
-      eventColor: "blue",
+      eventColor: overdue ? "red" : "blue",
       kind: "invoice",
       draggable: false,
       resizable: false,
+      panel: {
+        title: `${label} invoice · ${input.client.name}`,
+        lines: [
+          `Amount ${formatUsd(inv.amountCents)}`,
+          `Due ${formatDay(inv.dueDate)}`,
+          `Status: ${overdue ? "overdue" : inv.status}`,
+          inv.paypalInvoiceId ? `PayPal invoice ${inv.paypalInvoiceId}` : "Not created in PayPal yet",
+        ],
+        links: [{ href: `/campaigns/${input.campaignId}/team`, label: "Invoices on the Team view" }],
+      },
     });
   }
 
-  const creatorOf = new Map(input.assignments.map((a) => [a.id, a.creatorId]));
+  const creatorOf = new Map(input.assignments.map((a) => [a.id, a]));
   for (const p of input.payouts) {
     const [label, short, color] = PAYOUT_LABEL[p.status];
+    const a = creatorOf.get(p.assignmentId);
+    const open = p.status === "awaiting_approval" || p.status === "scheduled";
     events.push({
       id: `payout-${p.id}`,
-      resourceId: creatorOf.get(p.assignmentId) ?? "client",
+      refId: p.id,
+      resourceId: a?.creatorId ?? "client",
       name: `${label} ${usd(p.amountCents)}`,
       shortName: `${short} ${usd(p.amountCents)}`,
       ...day(p.scheduledFor),
@@ -112,6 +152,20 @@ export function toTimeline(input: TimelineInput): { resources: TimelineResource[
       kind: "payout",
       draggable: false,
       resizable: false,
+      panel: {
+        title: `Payout · ${a?.creatorName ?? "creator"}`,
+        lines: [
+          `Amount ${formatUsd(p.amountCents)}${a ? ` (contract fee ${formatUsd(a.feeCents)})` : ""}`,
+          `Payout date ${formatDay(p.scheduledFor)}`,
+          `Status: ${label}`,
+          ...(p.statusReason ? [`Reason: ${p.statusReason}`] : []),
+        ],
+        links: [
+          ...(open ? [{ href: "/approvals", label: p.status === "awaiting_approval" ? "Approve in the queue" : "Send now in the queue" }] : []),
+          ...(open ? [{ href: `/approvals/${p.id}`, label: "Edit or reject" }] : []),
+          { href: `/campaigns/${input.campaignId}/audit`, label: "Audit log" },
+        ],
+      },
     });
   }
 

@@ -2,13 +2,15 @@ import { describe, it, expect } from "vitest";
 import { addDays, toTimeline, type TimelineInput } from "./events";
 
 const input: TimelineInput = {
+  campaignId: "cp",
+  today: "2026-10-20",
   client: { id: "cl", name: "Kopi Kita Sdn Bhd" },
   assignments: [
-    { id: "as1", creatorId: "cr1", creatorName: "@jasonlifts", creatorType: "influencer", dueDate: "2026-10-24", status: "verified", feeCents: 120000 },
-    { id: "as2", creatorId: "cr2", creatorName: "Daniel Lim", creatorType: "freelancer", dueDate: "2026-10-27", status: "held", feeCents: 100000 },
+    { id: "as1", creatorId: "cr1", creatorName: "@jasonlifts", creatorType: "influencer", deliverable: "1 TikTok video", dueDate: "2026-10-24", status: "verified", feeCents: 120000, verified: "Post checklist · Mei Tan" },
+    { id: "as2", creatorId: "cr2", creatorName: "Daniel Lim", creatorType: "freelancer", deliverable: "2 × 30s product video edits", dueDate: "2026-10-27", status: "held", feeCents: 100000, verified: "Not verified" },
   ],
-  invoices: [{ id: "inv1", kind: "deposit", amountCents: 600000, dueDate: "2026-10-16", status: "paid" }],
-  payouts: [{ id: "po1", assignmentId: "as1", amountCents: 120000, scheduledFor: "2026-10-29", status: "awaiting_approval" }],
+  invoices: [{ id: "inv1", kind: "deposit", amountCents: 600000, dueDate: "2026-10-16", status: "paid", paypalInvoiceId: "INV2-1" }],
+  payouts: [{ id: "po1", assignmentId: "as1", amountCents: 120000, scheduledFor: "2026-10-29", status: "awaiting_approval", statusReason: null }],
 };
 
 describe("addDays", () => {
@@ -45,5 +47,37 @@ describe("toTimeline", () => {
 
   it("never lets an event be resized", () => {
     expect(events.every((e) => e.resizable === false)).toBe(true);
+  });
+});
+
+describe("overdue and side panel", () => {
+  const late: TimelineInput = {
+    ...input,
+    today: "2026-10-26",
+    assignments: [{ ...input.assignments[0], status: "scheduled" }],
+    invoices: [{ ...input.invoices[0], status: "sent", dueDate: "2026-10-25" }],
+  };
+  const byId = Object.fromEntries(toTimeline(late).events.map((e) => [e.id, e]));
+
+  it("turns a past-due post or unpaid invoice red (R13)", () => {
+    expect(byId["assignment-as1"]).toMatchObject({ eventColor: "red", shortName: "Overdue" });
+    expect(byId["invoice-inv1"]).toMatchObject({ eventColor: "red", shortName: "Overdue" });
+  });
+
+  it("gives every event its record id and the details and links for the side panel (R18)", () => {
+    const { events } = toTimeline(input);
+    const e = Object.fromEntries(events.map((x) => [x.id, x]));
+    expect(e["assignment-as1"].refId).toBe("as1");
+    expect(e["assignment-as1"].panel).toEqual({
+      title: "@jasonlifts · 1 TikTok video",
+      lines: ["Post due Oct 24", "Fee $1,200.00", "Status: verified", "Verification: Post checklist · Mei Tan"],
+      links: [{ href: "/campaigns/cp/assignments/as1", label: "Verify post" }],
+    });
+    expect(e["payout-po1"].panel.links).toEqual([
+      { href: "/approvals", label: "Approve in the queue" },
+      { href: "/approvals/po1", label: "Edit or reject" },
+      { href: "/campaigns/cp/audit", label: "Audit log" },
+    ]);
+    expect(e["invoice-inv1"].panel.lines).toContain("PayPal invoice INV2-1");
   });
 });

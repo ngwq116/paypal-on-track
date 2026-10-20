@@ -24,9 +24,9 @@ export const INVOICE_JSON_SCHEMA = {
   required: ["payee", "paypalEmail", "deliverable", "currency", "amount", "confidence"],
   properties: {
     payee: str("Name of the person or business being paid, exactly as written"),
-    paypalEmail: str("PayPal or payment email on the invoice, exactly as written; empty string if none"),
-    deliverable: str("What the invoice charges for, copied from the line item description"),
-    currency: str("ISO currency code of the total, e.g. USD or MYR"),
+    paypalEmail: str("Email the payee wants to be paid at: the PayPal email if one is labelled, otherwise the payee's own email on the invoice; exactly as written; empty string if the invoice shows no email for the payee"),
+    deliverable: str("The work item the invoice charges for, copied from the line item description including any count in it (e.g. 2 × 30s …); leave out a trailing \"for <client or campaign>\" phrase"),
+    currency: str("ISO currency code of the total, e.g. USD or MYR; a bare $ with no other currency marked means USD"),
     amount: str("Total amount due, digits with optional thousands commas and 2 decimals, no currency, e.g. 1,200.00"),
     confidence: { type: "number", description: "0 to 1: how sure you are that every field was read correctly" },
   },

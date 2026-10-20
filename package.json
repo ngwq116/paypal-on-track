@@ -15,7 +15,9 @@
     "db:seed:fresh": "tsx --env-file=.env scripts/seed.ts fresh",
     "db:studio": "drizzle-kit studio",
     "db:push:test": "DATABASE_URL=postgres://ontrack:ontrack@localhost:5432/ontrack_test drizzle-kit push --force",
-    "test:int": "vitest run --config vitest.int.config.ts"
+    "test:int": "vitest run --config vitest.int.config.ts",
+    "eval:files": "tsx scripts/make-eval-files.ts",
+    "eval": "tsx --env-file=.env scripts/eval.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",
@@ -45,6 +47,7 @@
     "drizzle-kit": "^0.31.11",
     "eslint": "^9",
     "eslint-config-next": "16.4.0",
+    "pdf-lib": "^1.17.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5",

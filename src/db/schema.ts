@@ -1,4 +1,5 @@
 import { pgTable, pgEnum, uuid, text, integer, boolean, date, timestamp, jsonb, customType } from "drizzle-orm/pg-core";
+import type { ContractForm } from "@/lib/domain/contract";
 import type { PostBrief } from "@/lib/domain/types";
 
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => "bytea" });
@@ -109,4 +110,20 @@ export const auditEvents = pgTable("audit_events", {
   action: text("action").notNull(),
   detail: jsonb("detail").notNull().default({}),
   at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const contractStatus = pgEnum("contract_status", ["draft", "confirmed"]);
+
+// R1–R3: the uploaded contract, what the AI read, and the campaign it created once confirmed.
+export const contracts = pgTable("contracts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  fileName: text("file_name").notNull(),
+  fileType: text("file_type").notNull(),
+  file: bytea("file").notNull(),
+  extracted: jsonb("extracted").$type<ContractForm>().notNull(), // the AI reading, then the person's edits
+  model: text("model").notNull(),
+  status: contractStatus("status").notNull().default("draft"),
+  campaignId: uuid("campaign_id").references(() => campaigns.id),
+  uploadedBy: text("uploaded_by").notNull(),
+  uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull().defaultNow(),
 });

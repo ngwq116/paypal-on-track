@@ -15,20 +15,17 @@ const brief = (windowStart: string, windowEnd: string) => ({
 });
 
 async function main() {
-  // "fresh": deposit not sent, nothing verified (start of the demo). Default: mid-campaign.
-  const fresh = process.argv[2] === "fresh";
+  // "roster": client + creators only (demo step 1 uploads the contract). "fresh": deposit not sent. Default: mid-campaign.
+  const mode = process.argv[2];
+  const fresh = mode === "fresh";
   const creatorEmail = process.env.SANDBOX_CREATOR_EMAIL ?? "creator@example.com";
   const clientEmail = process.env.SANDBOX_CLIENT_EMAIL ?? "client@example.com";
 
   await db.execute(
-    sql`truncate webhook_events, audit_events, verifications, submissions, payouts, client_invoices, assignments, creators, campaigns, clients restart identity cascade`,
+    sql`truncate contracts, webhook_events, audit_events, verifications, submissions, payouts, client_invoices, assignments, creators, campaigns, clients restart identity cascade`,
   );
 
   const [client] = await db.insert(schema.clients).values({ name: "Kopi Kita Sdn Bhd", email: clientEmail }).returning();
-  const [campaign] = await db
-    .insert(schema.campaigns)
-    .values({ clientId: client.id, name: "Kopi Kita · Pagi Launch", startDate: "2026-10-19", endDate: "2026-11-20", depositCleared: !fresh })
-    .returning();
 
   const [aina, jason, mira, daniel] = await db
     .insert(schema.creators)
@@ -38,6 +35,16 @@ async function main() {
       { name: "@mira.travels", type: "influencer", detail: "Instagram", paypalEmail: creatorEmail },
       { name: "Daniel Lim", type: "freelancer", detail: "Video edits", paypalEmail: creatorEmail },
     ])
+    .returning();
+
+  if (mode === "roster") {
+    console.log("Seeded roster only: upload eval/files/contract-kopi-kita.pdf at /campaigns/new");
+    process.exit(0);
+  }
+
+  const [campaign] = await db
+    .insert(schema.campaigns)
+    .values({ clientId: client.id, name: "Kopi Kita · Pagi Launch", startDate: "2026-10-19", endDate: "2026-11-20", depositCleared: !fresh })
     .returning();
 
   const [aAina, aJason] = await db

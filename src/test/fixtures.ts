@@ -6,7 +6,7 @@ type AssignmentStatus = (typeof schema.assignmentStatus.enumValues)[number];
 
 export async function resetDb() {
   await db.execute(
-    sql`truncate webhook_events, audit_events, verifications, submissions, payouts, client_invoices, assignments, creators, campaigns, clients restart identity cascade`,
+    sql`truncate contracts, webhook_events, audit_events, verifications, submissions, payouts, client_invoices, assignments, creators, campaigns, clients restart identity cascade`,
   );
 }
 

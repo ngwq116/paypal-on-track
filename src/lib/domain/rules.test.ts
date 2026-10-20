@@ -3,7 +3,7 @@ import { formatDay } from "./format";
 import { formatUsd, parseUsdToCents } from "./money";
 import { checklistFor, decidePostCheck } from "./post-checklist";
 import { compareInvoice, payoutAmountFor } from "./invoice-match";
-import { checkUpload, IMAGE_TYPES, INVOICE_TYPES } from "./upload";
+import { checkUpload, CONTRACT_TYPES, IMAGE_TYPES, INVOICE_TYPES } from "./upload";
 import type { PostBrief } from "./types";
 
 const brief: PostBrief = { brandTag: "@kopikita", hashtags: ["#KopiKitaPagi", "#ad"], windowStart: "2026-10-30", windowEnd: "2026-11-01" };
@@ -102,5 +102,9 @@ describe("checkUpload", () => {
     expect(checkUpload(file("application/pdf"), IMAGE_TYPES)).toBe("Upload a PNG, JPEG or WebP image");
     expect(checkUpload(file("image/png", 0), IMAGE_TYPES)).toBe("The file is empty");
     expect(checkUpload(file("image/png", 20 * 1024 * 1024), IMAGE_TYPES)).toBe("The file is larger than 4 MB");
+  });
+  it("takes only a PDF for a contract", () => {
+    expect(checkUpload(file("application/pdf"), CONTRACT_TYPES)).toBeNull();
+    expect(checkUpload(file("image/png"), CONTRACT_TYPES)).toBe("Upload the contract as a PDF");
   });
 });

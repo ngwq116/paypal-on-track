@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import ActorSelect from "@/components/ActorSelect";
 import { notFound } from "next/navigation";
 import AssignmentsTable from "@/components/AssignmentsTable";
 import CampaignHeader from "@/components/CampaignHeader";
@@ -32,6 +33,9 @@ async function TeamContent({ params, searchParams }: Props) {
       <CampaignHeader campaign={data.campaign} clientName={clientName} active="team" />
       <Notice text={notice} />
       <DepositPanel campaignId={id} />
+      <div className="flex justify-end">
+        <ActorSelect id="view-actor" />
+      </div>
       <TeamScheduler
         resources={data.resources}
         events={data.events}

@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import ActorSelect from "@/components/ActorSelect";
 import { notFound } from "next/navigation";
 import CampaignCalendar from "@/components/CampaignCalendar";
 import CampaignHeader from "@/components/CampaignHeader";
@@ -23,6 +24,9 @@ async function CalendarContent({ params }: { params: Promise<{ id: string }> }) 
   return (
     <>
       <CampaignHeader campaign={data.campaign} clientName={clientName} active="calendar" />
+      <div className="flex justify-end">
+        <ActorSelect id="view-actor" />
+      </div>
       <CampaignCalendar resources={data.resources} events={data.events} date={data.campaign.startDate} />
     </>
   );

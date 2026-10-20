@@ -1,5 +1,9 @@
 "use server";
+import { aiFromEnv } from "@/lib/ai/client";
+import { readInvoice, toInvoiceFields } from "@/lib/ai/invoice-reader";
+import { AiReadError } from "@/lib/ai/read-file";
 import { agencyToday } from "@/lib/domain/today";
+import { checkUpload, INVOICE_TYPES } from "@/lib/domain/upload";
 import { actorFrom, backTo, fileFrom, text } from "@/lib/form";
 import { overrideInvoice, submitInvoice, submitPostCheck } from "@/lib/services/verification";
 import { isUuid } from "@/lib/uuid";
@@ -50,4 +54,33 @@ export async function checkInvoice(form: FormData) {
 export async function overrideHeldInvoice(form: FormData) {
   const r = await overrideInvoice({ assignmentId: text(form, "assignmentId"), reason: text(form, "reason"), actor: actorFrom(form), today: agencyToday() });
   backTo(pageOf(form), r.ok ? "Override logged. The payout is waiting for approval." : r.reason);
+}
+
+// R11: the AI fills the invoice fields; compareInvoice() inside submitInvoice still decides.
+export async function readInvoiceWithAi(form: FormData) {
+  const here = pageOf(form);
+  const file = await fileFrom(form, "invoice");
+  if (!file) backTo(here, "Upload the invoice");
+  const fileError = checkUpload(file, INVOICE_TYPES);
+  if (fileError) backTo(here, fileError);
+
+  let reading: Awaited<ReturnType<typeof readInvoice>>;
+  try {
+    reading = await readInvoice(aiFromEnv(), file);
+  } catch (err) {
+    console.error("[ai] invoice read failed", err);
+    backTo(here, `${err instanceof AiReadError ? err.message : "The AI couldn't be reached"}. Type the invoice fields instead.`);
+  }
+  const checked = toInvoiceFields(reading.data);
+  if (!checked.ok) backTo(here, `${checked.reason}. Type the invoice fields instead.`);
+
+  const r = await submitInvoice({
+    assignmentId: text(form, "assignmentId"),
+    file,
+    ...checked.fields,
+    actor: actorFrom(form),
+    today: agencyToday(),
+    reader: { model: reading.model, confidence: reading.data.confidence },
+  });
+  backTo(here, r.ok ? "Invoice read by AI and checked against the contract." : r.reason);
 }

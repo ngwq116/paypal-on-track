@@ -84,6 +84,8 @@ export async function submitInvoice(input: {
   paypalEmail: string;
   deliverable: string;
   amount: string;
+  currency?: string; // what the invoice is billed in; staff-typed invoices are USD
+  reader?: { model: string; confidence: number }; // set when the AI read the invoice
   actor: string;
   today: string;
 }): Promise<ActionResult> {
@@ -102,7 +104,7 @@ export async function submitInvoice(input: {
     if (creator.type !== "freelancer") return { ok: false, reason: "Influencers are verified with the post checklist" };
     if (assignment.status === "verified" || assignment.status === "paid") return { ok: false, reason: "This work is already verified" };
 
-    const invoice = { payee: input.payee, paypalEmail: input.paypalEmail, deliverable: input.deliverable, currency: "USD", amountCents };
+    const invoice = { payee: input.payee, paypalEmail: input.paypalEmail, deliverable: input.deliverable, currency: input.currency ?? "USD", amountCents };
     const result = compareInvoice(
       { payee: creator.name, paypalEmail: creator.paypalEmail, deliverable: assignment.deliverable, currency: campaign.currency, feeCents: assignment.feeCents },
       invoice,
@@ -114,10 +116,10 @@ export async function submitInvoice(input: {
       .returning();
     await tx.insert(schema.verifications).values({
       submissionId: submission.id,
-      source: "user",
+      source: input.reader ? "ai" : "user",
       task: "invoice_match",
       pass: result.match,
-      checks: { fields: result.fields, invoice },
+      checks: { fields: result.fields, invoice, ...(input.reader ? { reader: input.reader } : {}) },
       createdBy: input.actor,
     });
     await tx.update(schema.assignments).set({ status: result.match ? "verified" : "held" }).where(eq(schema.assignments.id, assignment.id));
@@ -125,7 +127,11 @@ export async function submitInvoice(input: {
       campaignId: campaign.id,
       actor: input.actor,
       action: result.match ? "invoice.matched" : "invoice.held",
-      detail: { assignmentId: assignment.id, mismatches: result.fields.filter((f) => !f.ok) },
+      detail: {
+        assignmentId: assignment.id,
+        mismatches: result.fields.filter((f) => !f.ok),
+        ...(input.reader ? { readBy: input.reader.model, confidence: input.reader.confidence } : {}),
+      },
     });
     if (result.match) {
       await queuePayout(tx, { campaignId: campaign.id, assignmentId: assignment.id, amountCents: assignment.feeCents, payoutDate: assignment.payoutDate, today: input.today, actor: input.actor });

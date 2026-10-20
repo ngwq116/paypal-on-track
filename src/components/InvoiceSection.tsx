@@ -1,6 +1,7 @@
-import { checkInvoice, overrideHeldInvoice } from "@/app/campaigns/[id]/assignments/[assignmentId]/actions";
+import { checkInvoice, overrideHeldInvoice, readInvoiceWithAi } from "@/app/campaigns/[id]/assignments/[assignmentId]/actions";
 import ActorSelect from "@/components/ActorSelect";
 import FileInput from "@/components/FileInput";
+import SubmitButton from "@/components/SubmitButton";
 import { buttonVariants } from "@/components/ui/button";
 import type { FieldComparison } from "@/lib/domain/invoice-match";
 import { formatUsd } from "@/lib/domain/money";
@@ -83,7 +84,9 @@ export default function InvoiceSection({ detail }: { detail: Detail }) {
             Invoice file
             <FileInput name="invoice" accept="application/pdf,image/png,image/jpeg,image/webp" className="text-sm font-normal" />
           </label>
-          <p className="text-xs text-zinc-500">Type what the invoice says, not what the contract says. The comparison is done by On-Track&apos;s rules.</p>
+          <p className="text-xs text-zinc-500">
+            <strong className="font-medium text-zinc-700">Read with AI</strong> fills the fields from the file and checks them. Or type what the invoice says and click Check typed fields. Either way the comparison is On-Track&apos;s own rules.
+          </p>
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5 text-sm font-medium">Payee<input name="payee" required className={input} /></label>
             <label className="flex flex-col gap-1.5 text-sm font-medium">PayPal email<input name="paypalEmail" type="email" required className={input} /></label>
@@ -92,7 +95,12 @@ export default function InvoiceSection({ detail }: { detail: Detail }) {
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
             <ActorSelect id="invoice-actor" />
-            <button className={buttonVariants()}>Check against contract</button>
+            <SubmitButton formAction={readInvoiceWithAi} formNoValidate pending="Reading…" className={buttonVariants()}>
+              Read with AI
+            </SubmitButton>
+            <SubmitButton formAction={checkInvoice} pending="Checking…" className={buttonVariants({ variant: "outline" })}>
+              Check typed fields
+            </SubmitButton>
           </div>
         </form>
       )}

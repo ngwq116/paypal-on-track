@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { resetDb, seedAssignment } from "@/test/fixtures";
 import { overrideInvoice, submitInvoice, submitPostCheck } from "./verification";
+import { verificationLabel } from "./queries";
 
 const png = { name: "post.png", type: "image/png", size: 3, bytes: Buffer.from([1, 2, 3]) };
 const ALL = ["brandTag", "hashtags", "window"];
@@ -94,5 +95,21 @@ describe("overrideInvoice", () => {
     const { assignment } = await seedAssignment({ type: "freelancer" });
     expect(await overrideInvoice({ ...who, assignmentId: assignment.id, reason: " " })).toEqual({ ok: false, reason: "A reason is required to override" });
     expect(await overrideInvoice({ ...who, assignmentId: assignment.id, reason: "x" })).toEqual({ ok: false, reason: "There is no held invoice to override" });
+  });
+});
+
+describe("submitInvoice read by AI", () => {
+  it("stores an AI verification with the model and confidence, and labels it", async () => {
+    const { assignment } = await seedAssignment({ type: "freelancer" });
+    expect(await submitInvoice({ ...who, ...fields, assignmentId: assignment.id, file: pdf, reader: { model: "claude-haiku-5-5", confidence: 0.92 } })).toEqual({ ok: true });
+    const [v] = await db.select().from(schema.verifications);
+    expect(v).toMatchObject({ source: "ai", task: "invoice_match", pass: true });
+    expect(v.checks).toMatchObject({ reader: { model: "claude-haiku-5-5", confidence: 0.92 } });
+    expect(await verificationLabel(assignment.id)).toBe("Invoice matches (AI read) · Mei Tan");
+  });
+  it("holds an invoice billed in another currency", async () => {
+    const { assignment } = await seedAssignment({ type: "freelancer" });
+    await submitInvoice({ ...who, ...fields, currency: "MYR", assignmentId: assignment.id, file: pdf });
+    expect((await assignmentRow(assignment.id)).status).toBe("held");
   });
 });

@@ -6,13 +6,13 @@ const TASK_LABEL = { post_checklist: "Post checklist", invoice_match: "Invoice m
 
 export async function verificationLabel(assignmentId: string): Promise<string> {
   const [v] = await db
-    .select({ task: schema.verifications.task, pass: schema.verifications.pass, createdBy: schema.verifications.createdBy })
+    .select({ task: schema.verifications.task, pass: schema.verifications.pass, source: schema.verifications.source, createdBy: schema.verifications.createdBy })
     .from(schema.verifications)
     .innerJoin(schema.submissions, eq(schema.submissions.id, schema.verifications.submissionId))
     .where(eq(schema.submissions.assignmentId, assignmentId))
     .orderBy(desc(schema.verifications.createdAt))
     .limit(1);
-  return v?.pass ? `${TASK_LABEL[v.task]} · ${v.createdBy}` : "Not verified";
+  return v?.pass ? `${TASK_LABEL[v.task]}${v.source === "ai" ? " (AI read)" : ""} · ${v.createdBy}` : "Not verified";
 }
 
 const payoutWithContext = () =>

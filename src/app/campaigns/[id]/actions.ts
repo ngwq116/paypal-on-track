@@ -3,6 +3,7 @@ import { agencyToday } from "@/lib/domain/today";
 import { actorFrom, backTo, text } from "@/lib/form";
 import { payPalFromEnv } from "@/lib/paypal/client";
 import { checkInvoicePayment, createBalanceDraft, sendDepositInvoice } from "@/lib/services/client-invoices";
+import { approveBalanceMove } from "@/lib/services/balance";
 
 export async function sendDeposit(form: FormData) {
   const campaignId = text(form, "campaignId");
@@ -21,4 +22,11 @@ export async function checkDeposit(form: FormData) {
   const campaignId = text(form, "campaignId");
   const r = await checkInvoicePayment(payPalFromEnv(), campaignId, "deposit", actorFrom(form));
   backTo(`/campaigns/${campaignId}/team`, !r.ok ? r.reason : r.paid ? "PayPal confirms the deposit is paid." : "PayPal still shows the deposit as unpaid.");
+}
+
+export async function approveBalanceMoveAction(form: FormData) {
+  const campaignId = text(form, "campaignId");
+  const view = text(form, "view") === "calendar" ? "calendar" : "team";
+  const r = await approveBalanceMove(payPalFromEnv(), { campaignId, newDueDate: text(form, "newDueDate"), actor: actorFrom(form) });
+  backTo(`/campaigns/${campaignId}/${view}`, r.ok ? "Balance invoice due date moved." : r.reason);
 }

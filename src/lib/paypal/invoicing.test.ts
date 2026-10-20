@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import type { PayPalClient } from "./client";
 import { createInvoice } from "./invoicing";
-import { getInvoiceStatus, getInvoiceViewUrl, invoiceNumberFor, isPaidStatus } from "./invoicing";
+import { getInvoiceStatus, getInvoiceViewUrl, invoiceNumberFor, isPaidStatus, updateInvoiceDueDate } from "./invoicing";
 
 describe("createInvoice", () => {
   it("sends the item's unit_amount with currency_code USD and a 2-decimal value", async () => {
@@ -55,5 +55,26 @@ describe("getInvoiceStatus / isPaidStatus", () => {
     expect(isPaidStatus("PARTIALLY_PAID")).toBe(false);
     expect(isPaidStatus("PAYMENT_PENDING")).toBe(false);
     expect(isPaidStatus("SENT")).toBe(false);
+  });
+});
+
+describe("updateInvoiceDueDate", () => {
+  it("reads the whole invoice and puts it back with only the due date changed (PayPal has no partial update)", async () => {
+    const invoice = {
+      id: "INV2-9",
+      status: "SENT",
+      detail: { invoice_number: "OT-1-BAL", currency_code: "USD", payment_term: { term_type: "DUE_ON_DATE_SPECIFIED", due_date: "2026-11-20" } },
+      items: [{ name: "Balance" }],
+      links: [{ href: "x", rel: "self" }],
+    };
+    const request = vi.fn().mockResolvedValueOnce(invoice).mockResolvedValueOnce({});
+    await updateInvoiceDueDate({ request } as unknown as PayPalClient, "INV2-9", "2026-11-23");
+    expect(request.mock.calls[0]).toEqual(["GET", "/v2/invoicing/invoices/INV2-9"]);
+    const [method, path, body] = request.mock.calls[1];
+    expect(method).toBe("PUT");
+    expect(path).toBe("/v2/invoicing/invoices/INV2-9?send_to_recipient=false&send_to_invoicer=false");
+    expect(body.detail).toEqual({ ...invoice.detail, payment_term: { term_type: "DUE_ON_DATE_SPECIFIED", due_date: "2026-11-23" } });
+    expect(body.items).toEqual(invoice.items);
+    expect(body.links).toBeUndefined();
   });
 });

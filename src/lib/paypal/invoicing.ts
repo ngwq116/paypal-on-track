@@ -61,3 +61,15 @@ export async function getInvoiceStatus(pp: PayPalClient, invoiceId: string): Pro
 
 // PARTIALLY_PAID and PAYMENT_PENDING are not paid: the deposit lock stays on.
 export const isPaidStatus = (status: string): boolean => status === "PAID" || status === "MARKED_AS_PAID";
+
+// R19: PayPal has no partial invoice update: read the whole invoice, change the due date, put it back.
+// send_to_recipient=false: the client isn't emailed again for a date change.
+export async function updateInvoiceDueDate(pp: PayPalClient, invoiceId: string, dueDate: string): Promise<void> {
+  const inv = await pp.request<Record<string, unknown> & { detail: Record<string, unknown> & { payment_term?: Record<string, unknown> } }>(
+    "GET",
+    `/v2/invoicing/invoices/${invoiceId}`,
+  );
+  const { links: _links, ...rest } = inv as typeof inv & { links?: unknown };
+  const body = { ...rest, detail: { ...inv.detail, payment_term: { ...inv.detail.payment_term, term_type: "DUE_ON_DATE_SPECIFIED", due_date: dueDate } } };
+  await pp.request("PUT", `/v2/invoicing/invoices/${invoiceId}?send_to_recipient=false&send_to_invoicer=false`, body);
+}

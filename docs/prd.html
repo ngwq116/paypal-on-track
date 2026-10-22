@@ -101,7 +101,7 @@
     <li><strong>G2. Pay creators on a clear schedule as soon as work is verified and approved,</strong> not 60–90 days later.</li>
     <li><strong>G3. Catch invoice and deliverable problems automatically,</strong> before money moves.</li>
     <li><strong>G4. One shared picture of the campaign:</strong> who owes what, who is owed what, and when, in both a team timeline and a calendar.</li>
-    <li><strong>G5. Win the hackathon.</strong> A working, hosted, end-to-end demo with a clear video.</li>
+    <li><strong>G5. Win the hackathon.</strong> A working, runnable (setup steps in the README), end-to-end demo with a clear video.</li>
   </ul>
 </section>
 
@@ -240,7 +240,7 @@
   <div class="table-wrap"><table>
     <tr><th>Risk</th><th>Impact</th><th>Mitigation</th></tr>
     <tr><td>Sandbox Payouts not enabled or behaves differently</td><td>Core demo step fails</td><td>Test a payout from a script on day 1. Fallback: pay through a PayPal order captured from the agency account.</td></tr>
-    <tr><td>Webhooks need a public URL</td><td>Can't show automatic updates locally</td><td>Deploy to Render early (week 3). Use a tunnel during development.</td></tr>
+    <tr><td>Webhooks need a public URL</td><td>Can't show automatic updates locally</td><td>Run locally with a cloudflared tunnel; a &ldquo;Check payment&rdquo; fallback covers a missing invoice-paid event. Hosting (Vercel) is optional.</td></tr>
     <tr><td>Bryntum trial expires during judging</td><td>Hosted demo breaks or shows a watermark</td><td>Ask on the PayPal Discord in week 1. Also keep local run instructions in the README.</td></tr>
     <tr><td>AI misreads a contract or invoice during recording</td><td>Weak demo</td><td>Tune on the seeded test set. Contract fields are always reviewed (R2). Every payout is approved by a person, and the approval queue shows the AI result next to the contract, so a misread is caught before money moves. Switch to Sonnet 5.5 if Haiku falls short.</td></tr>
     <tr><td>Scope creep (solo, 35 hours)</td><td>Unfinished submission</td><td>Non-goals above. "Should" items only after all "Must" items work end-to-end.</td></tr>
@@ -267,7 +267,7 @@
     <tr><th>Phase</th><th>Dates</th><th>Exit criteria</th></tr>
     <tr><td>Week 1: foundations</td><td>Oct 12–18</td><td>Q1–Q4 answered. A script sends a sandbox invoice and a sandbox payout. App skeleton with both Bryntum views on seed data.</td></tr>
     <tr><td>Week 2: money + AI</td><td>Oct 19–25</td><td>R1–R12 and R15–R17 work end-to-end locally.</td></tr>
-    <tr><td>Week 3: views + deploy</td><td>Oct 26–Nov 1</td><td>R13, R14, R18, R19, R21 done. Deployed on Render with live webhooks.</td></tr>
+    <tr><td>Week 3: views + deploy</td><td>Oct 26–Nov 1</td><td>R13, R14, R18, R19, R21 done. Runs locally with live PayPal webhooks through a tunnel.</td></tr>
     <tr><td>Week 4: polish</td><td>Nov 2–8</td><td>Metrics in section 4 met. README, licence, setup instructions. "Should" items if time allows.</td></tr>
     <tr><td>Submit</td><td>Nov 9–11</td><td>Video recorded and uploaded, Devpost text written, submitted by Nov 11 (one day of buffer).</td></tr>
   </table></div>

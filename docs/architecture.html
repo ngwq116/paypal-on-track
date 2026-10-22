@@ -43,7 +43,7 @@
 <header class="doc-head">
   <div class="eyebrow">Technical design</div>
   <h1>Tech stack &amp; architecture</h1>
-  <p class="lede">How On-Track is built: one Next.js app on Render, Postgres, Claude Haiku 5.5 for reading contracts and invoices, PayPal sandbox for money, and Bryntum Scheduler and Calendar for the views. Requirements IDs (R1…) refer to the <a href="prd.html#requirements">PRD</a>.</p>
+  <p class="lede">How On-Track is built: one Next.js app (local, optional Vercel), Postgres, Claude Haiku 5.5 for reading contracts and invoices, PayPal sandbox for money, and Bryntum Scheduler and Calendar for the views. Requirements IDs (R1…) refer to the <a href="prd.html#requirements">PRD</a>.</p>
   <div class="meta">
     <span>Version: 0.1</span>
     <span>Date: Oct 12, 2026</span>
@@ -69,14 +69,14 @@
     <tr><td>Timeline views</td><td><strong>Bryntum Scheduler</strong> + <strong>Bryntum Calendar</strong> (React wrappers, trial packages)</td><td>Bryntum prize. Both views share the same event data (R13, R14).</td></tr>
     <tr><td>UI kit</td><td><strong>Tailwind CSS</strong> + <strong>shadcn/ui</strong></td><td>Fast, consistent side panel, dialogs, forms and toasts without custom design work.</td></tr>
     <tr><td>Validation</td><td><strong>Zod</strong></td><td>One schema validates API input, AI structured output and webhook payloads.</td></tr>
-    <tr><td>Database</td><td><strong>PostgreSQL</strong> on Render + <strong>Drizzle ORM</strong></td><td>Typed queries, simple migrations. Render's disk is ephemeral, so SQLite would lose data on redeploy.</td></tr>
+    <tr><td>Database</td><td><strong>PostgreSQL</strong> in Docker (local) + <strong>Drizzle ORM</strong></td><td>Typed queries, simple migrations, and row locks (<code>SELECT … FOR UPDATE</code>) for the payout guardrail. The same schema works on a hosted Postgres if the app is deployed.</td></tr>
     <tr><td>File storage</td><td>Postgres <code>bytea</code> column (demo scale)</td><td>Contracts, screenshots and invoices are small and few. Avoids a separate storage service.</td></tr>
     <tr><td>AI model</td><td><strong>Claude Haiku 5.5</strong> (<code>claude-haiku-5-5</code>) via the Anthropic TypeScript SDK. Fallback: Claude Sonnet 5.5 (<code>claude-sonnet-5-5</code>)</td><td>The AI jobs are extraction and comparison, which suit a small, fast model. Haiku costs $0.10 / $0.50 per million input / output tokens, about 20× cheaper than Sonnet 5.5 ($2 / $10). The model is one setting (<code>AI_MODEL</code>), so switching needs no code change.</td></tr>
     <tr><td>Agent ("Should")</td><td>Anthropic SDK tool-use loop + our own guarded tools; optionally the <strong>PayPal MCP server</strong> for invoice tools</td><td>The PayPal MCP server has invoice, order, subscription and dispute tools but <strong>no payouts</strong> (<a href="prd.html#questions">PRD Q3</a>). Payout and reschedule tools are our own, so they always pass through the guardrail.</td></tr>
     <tr><td>Payments</td><td><strong>PayPal REST API</strong> (sandbox): Invoicing v2, Payouts v1, Webhooks</td><td>Invoicing covers client billing. Payouts covers creator payments, called directly because it is not in the MCP server. Webhooks drive automatic updates. USD only.</td></tr>
-    <tr><td>Scheduled payouts</td><td><strong>Render Cron Job</strong>, daily, calls <code>POST /api/payouts/run-due</code></td><td>Sends approved payouts whose date has arrived (R25). "Send now" calls the same code path for one payout, which is what the demo uses.</td></tr>
-    <tr><td>Live updates</td><td>Client polling every 3 s on the campaign endpoint</td><td>Simplest thing that works on Render. Switch to Server-Sent Events only if polling looks sluggish in the video.</td></tr>
-    <tr><td>Hosting</td><td><strong>Render</strong> web service + Render Postgres</td><td>Render prize, $50 credits, public HTTPS URL for PayPal webhooks.</td></tr>
+    <tr><td>Scheduled payouts</td><td><code>POST /api/payouts/run-due</code>, called by curl locally or Vercel Cron if hosted</td><td>Sends approved payouts whose date has arrived (R25). "Send now" calls the same code path for one payout, which is what the demo uses.</td></tr>
+    <tr><td>Live updates</td><td>Client polling every 3 s on the campaign endpoint</td><td>Simplest thing that works anywhere. Switch to Server-Sent Events only if polling looks sluggish in the video.</td></tr>
+    <tr><td>Hosting</td><td><strong>Local</strong> + cloudflared tunnel; optional <strong>Vercel</strong></td><td>PayPal webhooks need a public URL; a tunnel gives one without hosting costs. Judges run it from the README.</td></tr>
     <tr><td>Dev tooling</td><td>Claude Code + <strong>APIMatic Context Plugin for PayPal</strong>; ngrok or cloudflared tunnel for local webhooks</td><td>APIMatic prize, and correct PayPal API usage without reading every reference page.</td></tr>
     <tr><td>Testing</td><td>Vitest for guardrails and state transitions; an AI eval script over seeded files</td><td>Guardrails must be proven correct. The eval script measures the PRD's accuracy targets.</td></tr>
   </table></div>
@@ -93,7 +93,7 @@ flowchart TB
     AB["Agent command bar"]
   end
 
-  subgraph App["Next.js server on Render"]
+  subgraph App["Next.js server"]
     API["API routes<br/>/api/campaigns, /api/uploads,<br/>/api/actions, /api/agent"]
     WH["/api/webhooks/paypal"]
     AI["AI services<br/>ContractExtractor<br/>InvoiceMatcher<br/>PostPreCheck (optional)"]
@@ -103,10 +103,10 @@ flowchart TB
     AU["Audit logger"]
   end
 
-  DB[("Postgres<br/>Render")]
+  DB[("Postgres")]
   CL["Claude API<br/>claude-haiku-5-5"]
   PS["PayPal sandbox"]
-  CR["Render Cron<br/>daily run-due"]
+  CR["Daily run-due<br/>(curl or Vercel Cron)"]
 
   TV & CV & SP & AB -->|"fetch / poll 3s"| API
   API --> AI --> CL
@@ -505,14 +505,13 @@ PAYPAL_WEBHOOK_ID=
 CRON_SECRET=                     # protects /api/payouts/run-due
 APP_URL=</code></pre>
   <div class="callout danger"><p>Never commit <code>.env</code>. The repo must be public for submission, so add <code>.env*</code> to <code>.gitignore</code> before the first commit and check <code>git status</code> before every push.</p></div>
-  <h3>Deploy</h3>
+  <h3>Run and deploy</h3>
   <ol class="steps">
-    <li><code>render.yaml</code> defines one web service, one Postgres database and one daily Cron Job that calls <code>/api/payouts/run-due</code> with <code>CRON_SECRET</code>.</li>
-    <li>On deploy: run Drizzle migrations, then the seed script (roster, one demo campaign template).</li>
-    <li>Register the Render URL + <code>/api/webhooks/paypal</code> in the PayPal developer dashboard and copy the webhook ID into <code>PAYPAL_WEBHOOK_ID</code>.</li>
-    <li>Add a "Reset demo" button (dev flag) that reseeds, so judges and the video always start clean.</li>
+    <li>Local: <code>make up</code> (Postgres in Docker), <code>npm run db:push</code>, <code>npm run db:seed:roster</code>, <code>npm run dev</code>. Full steps in the README.</li>
+    <li>Webhooks: <code>cloudflared tunnel --url http://localhost:3000</code>, register <code>&lt;tunnel&gt;/api/webhooks/paypal</code> in the PayPal developer dashboard and copy the webhook ID into <code>PAYPAL_WEBHOOK_ID</code>.</li>
+    <li>A "Reset demo" button (<code>DEMO_RESET=1</code>) reseeds, so judges and the video always start clean.</li>
+    <li>Optional hosting on Vercel: hosted Postgres (e.g. Neon), Vercel Cron calling <code>/api/payouts/run-due</code> with <code>CRON_SECRET</code>, and a second webhook for the Vercel URL.</li>
   </ol>
-  <div class="callout warn"><p>Check Render Postgres free-tier limits (it has historically expired after a set period). Use the $50 credits for a paid instance if needed so the demo survives judging.</p></div>
 </section>
 
 <section id="plan">
@@ -533,7 +532,7 @@ APP_URL=</code></pre>
     <tr><td><strong>3</strong><br>Oct 26–Nov 1</td><td>
       Event colours, side panel, polling (R13, R14, R18).<br>
       Drag-to-reschedule + invoice due-date proposal (R19). Audit log (R21).<br>
-      Deploy to Render, register webhooks, run the full demo on the hosted URL.
+      Register webhooks through a tunnel and run the full demo locally.
     </td><td>9</td></tr>
     <tr><td><strong>4</strong><br>Nov 2–8</td><td>
       Hit the eval targets. Fix edge cases. Reset-demo button.<br>

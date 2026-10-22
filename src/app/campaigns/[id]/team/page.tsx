@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import ActorField from "@/components/ActorField";
 import { notFound } from "next/navigation";
+import AgentPanel from "@/components/AgentPanel";
 import AssignmentsTable from "@/components/AssignmentsTable";
 import BalanceProposal from "@/components/BalanceProposal";
 import CampaignHeader from "@/components/CampaignHeader";
@@ -11,7 +12,7 @@ import TeamScheduler from "@/components/TeamScheduler";
 import { addDays } from "@/lib/events";
 import { loadTimeline } from "@/lib/load-timeline";
 
-type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ notice?: string }> };
+type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ notice?: string; plan?: string; summary?: string }> };
 
 export default function TeamPage({ params, searchParams }: Props) {
   return (
@@ -26,7 +27,7 @@ export default function TeamPage({ params, searchParams }: Props) {
 // Live data, never cached: payout and approval state must always be current.
 async function TeamContent({ params, searchParams }: Props) {
   const { id } = await params;
-  const { notice } = await searchParams;
+  const { notice, plan, summary } = await searchParams;
   const data = await loadTimeline(id);
   if (!data) notFound();
   const clientName = data.resources.find((r) => r.id === "client")?.name ?? "";
@@ -44,6 +45,7 @@ async function TeamContent({ params, searchParams }: Props) {
         endDate={addDays(data.campaign.startDate, 14)}
       />
       <AssignmentsTable campaignId={id} />
+      <AgentPanel campaignId={id} plan={plan} summary={summary} />
     </>
   );
 }

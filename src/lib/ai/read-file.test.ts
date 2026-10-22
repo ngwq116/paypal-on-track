@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import type { AiClient } from "./client";
-import { AiReadError, fileBlock, readFileAsJson } from "./read-file";
+import { AiReadError, askForJson, fileBlock, readFileAsJson } from "./read-file";
 
 const pdf = { name: "a.pdf", type: "application/pdf", size: 3, bytes: Buffer.from("abc") };
 const png = { ...pdf, name: "a.png", type: "image/png" };
@@ -53,5 +53,13 @@ describe("readFileAsJson", () => {
     await expect(ask(fakeAi({ text: "not json" }).ai)).rejects.toThrow("valid JSON");
     await expect(ask(fakeAi({ text: '{"total":1}' }).ai)).rejects.toThrow("expected fields");
     await expect(ask(fakeAi({}).ai)).rejects.toThrow(AiReadError);
+  });
+});
+
+describe("askForJson", () => {
+  it("sends text-only content (no file) and validates the reply", async () => {
+    const { ai, create } = fakeAi({ text: '{"amount":"5"}' });
+    expect(await askForJson(ai, { content: [{ type: "text", text: "hi" }], jsonSchema: JSON_SCHEMA, parse: Schema })).toEqual({ data: { amount: "5" }, model: "claude-haiku-5-5" });
+    expect(create.mock.calls[0][0].messages[0].content).toEqual([{ type: "text", text: "hi" }]);
   });
 });

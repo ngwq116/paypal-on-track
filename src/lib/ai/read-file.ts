@@ -27,16 +27,16 @@ export function fileBlock(file: UploadedFile) {
     throw new AiReadError(`Can't read ${file.type || "this"} files`);
 }
 
-// One file in, one JSON object out. The schema constrains Claude's output; Zod checks it again,
+// Any content in, one validated JSON object out. The schema constrains Claude's output; Zod checks it again,
 // because the rest of the app trusts these types.
-export async function readFileAsJson<T>(
+export async function askForJson<T>(
   ai: AiClient,
-  input: { file: UploadedFile; instructions: string; jsonSchema: Record<string, unknown>; parse: ZodType<T>; maxTokens?: number },
+  input: { content: Array<Record<string, unknown>>; jsonSchema: Record<string, unknown>; parse: ZodType<T>; maxTokens?: number },
 ): Promise<{ data: T; model: string }> {
   const res = await ai.messages.create({
     model: aiModel(),
     max_tokens: input.maxTokens ?? 2048,
-    messages: [{ role: "user", content: [fileBlock(input.file), { type: "text", text: input.instructions }] }],
+    messages: [{ role: "user", content: input.content as unknown as Anthropic.ContentBlockParam[] }],
     output_config: { format: { type: "json_schema", schema: input.jsonSchema } },
   });
 
@@ -55,4 +55,17 @@ export async function readFileAsJson<T>(
   const parsed = input.parse.safeParse(json);
   if (!parsed.success) throw new AiReadError("The AI reply didn't have the expected fields");
   return { data: parsed.data, model: res.model };
+}
+
+// The one-file case: the file, then the instructions.
+export function readFileAsJson<T>(
+  ai: AiClient,
+  input: { file: UploadedFile; instructions: string; jsonSchema: Record<string, unknown>; parse: ZodType<T>; maxTokens?: number },
+) {
+  return askForJson(ai, {
+    content: [fileBlock(input.file), { type: "text", text: input.instructions }],
+    jsonSchema: input.jsonSchema,
+    parse: input.parse,
+    maxTokens: input.maxTokens,
+  });
 }

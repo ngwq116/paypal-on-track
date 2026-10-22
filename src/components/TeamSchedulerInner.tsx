@@ -11,7 +11,7 @@ import type { TimelineEvent, TimelineResource } from "@/lib/events";
 import { moveAssignment } from "@/app/campaigns/[id]/view-actions";
 import EventPanel from "./EventPanel";
 import { useAutoRefresh } from "./useAutoRefresh";
-import { readActor } from "./view-actor";
+import { getActor } from "./actor-cookie";
 
 export default function TeamSchedulerInner(props: {
   resources: TimelineResource[];
@@ -29,7 +29,7 @@ export default function TeamSchedulerInner(props: {
 
   // The server's dates always win: after any drop, refresh; a refused move snaps back.
   async function save(eventId: string, start: Date) {
-    const r = await moveAssignment(eventId, DateHelper.format(start, "YYYY-MM-DD"), readActor());
+    const r = await moveAssignment(eventId, DateHelper.format(start, "YYYY-MM-DD"), getActor());
     setError(r.ok ? null : r.reason);
     router.refresh();
   }

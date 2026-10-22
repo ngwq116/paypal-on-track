@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import ActorSelect from "@/components/ActorSelect";
+import ActorField from "@/components/ActorField";
 import BalanceProposal from "@/components/BalanceProposal";
 import CampaignCalendar from "@/components/CampaignCalendar";
 import CampaignHeader from "@/components/CampaignHeader";
@@ -31,9 +31,6 @@ async function CalendarContent({ params, searchParams }: Props) {
       <CampaignHeader campaign={data.campaign} clientName={clientName} active="calendar" />
       <Notice text={notice} />
       <BalanceProposal campaignId={id} view="calendar" />
-      <div className="flex justify-end">
-        <ActorSelect id="view-actor" />
-      </div>
       <CampaignCalendar resources={data.resources} events={data.events} date={data.campaign.startDate} />
     </>
   );

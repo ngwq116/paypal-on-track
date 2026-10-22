@@ -1,5 +1,5 @@
 import { holdPost, verifyPost } from "@/app/campaigns/[id]/assignments/[assignmentId]/actions";
-import ActorSelect from "@/components/ActorSelect";
+import ActorField from "@/components/ActorField";
 import FileInput from "@/components/FileInput";
 import { buttonVariants } from "@/components/ui/button";
 import { formatDay } from "@/lib/domain/format";
@@ -82,7 +82,7 @@ export default function PostCheckSection({ detail }: { detail: Detail }) {
               <textarea name="note" rows={2} placeholder="What's missing? This goes in the audit log." className="rounded-md border border-zinc-200 px-3 py-2 text-sm" />
             </label>
             <div className="flex flex-wrap items-center justify-end gap-2">
-              <ActorSelect />
+              <ActorField />
               <button formAction={holdPost} className={buttonVariants({ variant: "outline" })}>Hold with note</button>
               <button formAction={verifyPost} className={buttonVariants()}>Mark verified</button>
             </div>

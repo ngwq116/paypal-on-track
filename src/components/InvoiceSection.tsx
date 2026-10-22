@@ -1,5 +1,5 @@
 import { checkInvoice, overrideHeldInvoice, readInvoiceWithAi } from "@/app/campaigns/[id]/assignments/[assignmentId]/actions";
-import ActorSelect from "@/components/ActorSelect";
+import ActorField from "@/components/ActorField";
 import FileInput from "@/components/FileInput";
 import SubmitButton from "@/components/SubmitButton";
 import { buttonVariants } from "@/components/ui/button";
@@ -70,7 +70,7 @@ export default function InvoiceSection({ detail }: { detail: Detail }) {
             <span className="text-xs font-normal text-zinc-500">Pays what was invoiced, capped at the contract fee of {formatUsd(assignment.feeCents)}.</span>
           </label>
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <ActorSelect id="override-actor" />
+            <ActorField />
             <button className={buttonVariants({ variant: "outline" })}>Override with reason</button>
           </div>
         </form>
@@ -94,7 +94,7 @@ export default function InvoiceSection({ detail }: { detail: Detail }) {
             <label className="flex flex-col gap-1.5 text-sm font-medium">Amount (USD)<input name="amount" inputMode="decimal" placeholder="1,000.00" required className={input} /></label>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <ActorSelect id="invoice-actor" />
+            <ActorField />
             <SubmitButton formAction={readInvoiceWithAi} formNoValidate pending="Reading…" className={buttonVariants()}>
               Read with AI
             </SubmitButton>

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import NavActor from "@/components/NavActor";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -30,6 +31,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <a href="/" className="font-semibold">On-Track</a>
             <a href="/" className="text-zinc-600 hover:text-zinc-950">Campaigns</a>
             <a href="/approvals" className="text-zinc-600 hover:text-zinc-950">Approvals</a>
+            <NavActor />
           </nav>
         </header>
         {children}

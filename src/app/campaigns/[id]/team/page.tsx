@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import ActorSelect from "@/components/ActorSelect";
+import ActorField from "@/components/ActorField";
 import { notFound } from "next/navigation";
 import AssignmentsTable from "@/components/AssignmentsTable";
 import BalanceProposal from "@/components/BalanceProposal";
@@ -35,9 +35,6 @@ async function TeamContent({ params, searchParams }: Props) {
       <Notice text={notice} />
       <DepositPanel campaignId={id} />
       <BalanceProposal campaignId={id} view="team" />
-      <div className="flex justify-end">
-        <ActorSelect id="view-actor" />
-      </div>
       <TeamScheduler
         resources={data.resources}
         events={data.events}

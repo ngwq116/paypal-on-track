@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import ActorSelect from "@/components/ActorSelect";
+import ActorField from "@/components/ActorField";
 import Notice from "@/components/Notice";
 import { buttonVariants } from "@/components/ui/button";
 import { formatUsd } from "@/lib/domain/money";
@@ -63,8 +63,8 @@ async function Manage({ params, searchParams }: Props) {
               <textarea name="reason" rows={2} required className="rounded-md border border-zinc-200 px-3 py-2 text-sm" />
               <span className="text-xs font-normal text-zinc-500">Required. Saved to the audit log with your name.</span>
             </label>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <ActorSelect id="edit-actor" />
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              <ActorField />
               <button className={buttonVariants()}>Save changes</button>
             </div>
           </form>
@@ -75,8 +75,8 @@ async function Manage({ params, searchParams }: Props) {
               Reject and hold
               <textarea name="reason" rows={2} required placeholder="Why is this payout held?" className="rounded-md border border-zinc-200 px-3 py-2 text-sm" />
             </label>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <ActorSelect id="reject-actor" />
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              <ActorField />
               <button className={buttonVariants({ variant: "outline" })}>Reject</button>
             </div>
           </form>

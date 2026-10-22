@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import ActorSelect from "@/components/ActorSelect";
+import ActorField from "@/components/ActorField";
 import Notice from "@/components/Notice";
 import { buttonVariants } from "@/components/ui/button";
 import { formatDay } from "@/lib/domain/format";
@@ -34,8 +34,8 @@ async function Queue({ searchParams }: { searchParams: SearchParams }) {
     // One form: checkboxes feed the batch button; each row's button is bound to its own payout id.
     <form className="flex flex-col gap-4">
       <Notice text={notice} />
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <ActorSelect />
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        <ActorField />
         <button formAction={approveSelected} className={buttonVariants({ variant: "default" })}>
           Approve &amp; schedule selected
         </button>

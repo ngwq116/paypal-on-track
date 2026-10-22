@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import ActorSelect from "@/components/ActorSelect";
+import ActorField from "@/components/ActorField";
 import FileInput from "@/components/FileInput";
 import Notice from "@/components/Notice";
 import SubmitButton from "@/components/SubmitButton";
@@ -38,8 +38,8 @@ async function UploadForm({ searchParams }: Props) {
           <FileInput name="contract" accept="application/pdf" className="text-sm font-normal" />
           <span className="text-xs font-normal text-zinc-500">Up to 4 MB. Reading takes about 10–20 seconds.</span>
         </label>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <ActorSelect />
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          <ActorField />
           <SubmitButton pending="Reading the contract…" className={buttonVariants()}>Read contract</SubmitButton>
         </div>
       </form>

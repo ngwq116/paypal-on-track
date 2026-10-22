@@ -1,5 +1,5 @@
 import { checkDeposit, createBalance, sendDeposit } from "@/app/campaigns/[id]/actions";
-import ActorSelect from "@/components/ActorSelect";
+import ActorField from "@/components/ActorField";
 import AutoRefresh from "@/components/AutoRefresh";
 import { buttonVariants } from "@/components/ui/button";
 import { formatDay } from "@/lib/domain/format";
@@ -31,7 +31,7 @@ export default async function DepositPanel({ campaignId }: { campaignId: string 
             </a>
           )}
           <span className="flex items-center gap-3">
-            <ActorSelect id="check-actor" />
+            <ActorField />
             <button formAction={checkDeposit} className={buttonVariants({ variant: "outline", size: "sm" })}>
               Check payment
             </button>
@@ -45,7 +45,7 @@ export default async function DepositPanel({ campaignId }: { campaignId: string 
             <span className="text-amber-900">Deposit {formatUsd(deposit.amountCents)} not sent. Creator payouts stay locked until it is paid.</span>
           )}
           <span className="flex-1" />
-          <ActorSelect id="invoice-actor" />
+          <ActorField />
           {deposit?.status === "draft" && (
             <button formAction={sendDeposit} className={buttonVariants({ size: "sm" })}>Send deposit invoice</button>
           )}

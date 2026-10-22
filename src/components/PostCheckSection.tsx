@@ -1,6 +1,7 @@
-import { holdPost, verifyPost } from "@/app/campaigns/[id]/assignments/[assignmentId]/actions";
+import { holdPost, precheckPost, verifyPost } from "@/app/campaigns/[id]/assignments/[assignmentId]/actions";
 import ActorField from "@/components/ActorField";
 import FileInput from "@/components/FileInput";
+import SubmitButton from "@/components/SubmitButton";
 import { buttonVariants } from "@/components/ui/button";
 import { formatDay } from "@/lib/domain/format";
 import { formatUsd } from "@/lib/domain/money";
@@ -13,6 +14,7 @@ export default function PostCheckSection({ detail }: { detail: Detail }) {
   const { assignment, campaign, latest, payout } = detail;
   const brief = assignment.brief!;
   const done = assignment.status === "verified" || assignment.status === "paid";
+  const pre = latest?.task === "post_precheck" ? (latest.checks as { suggested: string[]; reasons: Record<string, string> }) : null;
 
   return (
     <div className="flex flex-wrap items-start gap-5">
@@ -53,13 +55,15 @@ export default function PostCheckSection({ detail }: { detail: Detail }) {
         )}
 
         {!done && (
-          <form className="flex flex-col gap-4">
+          <form key={latest?.submissionId ?? "none"} className="flex flex-col gap-4">
             <input type="hidden" name="campaignId" value={campaign.id} />
             <input type="hidden" name="assignmentId" value={assignment.id} />
             <label className="flex flex-col gap-1.5 text-sm font-medium">
               Post screenshot
-              <FileInput name="proof" accept="image/png,image/jpeg,image/webp" className="text-sm" />
-              <span className="text-xs font-normal text-zinc-500">PNG, JPEG or WebP, up to 4 MB. Sent by the creator, uploaded by you.</span>
+              <FileInput name="proof" accept="image/png,image/jpeg,image/webp" required={!pre} className="text-sm" />
+              <span className="text-xs font-normal text-zinc-500">
+                {pre ? "Using the screenshot the AI checked. Choose a new file only to replace it." : "PNG, JPEG or WebP, up to 4 MB. Sent by the creator, uploaded by you."}
+              </span>
             </label>
             <label className="flex flex-col gap-1.5 text-sm font-medium">
               Post link (optional)
@@ -69,10 +73,11 @@ export default function PostCheckSection({ detail }: { detail: Detail }) {
               <legend className="sr-only">Checklist</legend>
               {checklistFor(brief).map((item) => (
                 <label key={item.id} className="flex cursor-pointer items-start gap-3 border-b border-zinc-100 px-4 py-3.5 last:border-b-0">
-                  <input type="checkbox" name="ticked" value={item.id} className="mt-0.5 size-[18px] accent-zinc-900" />
+                  <input type="checkbox" name="ticked" value={item.id} defaultChecked={pre?.suggested.includes(item.id) ?? false} className="mt-0.5 size-[18px] accent-zinc-900" />
                   <span className="flex flex-col gap-1">
                     <span className="text-sm font-medium">{item.label}</span>
                     <span className="text-[13px] text-zinc-500">{item.hint}</span>
+                    {pre && <span className="text-[13px] text-zinc-700">AI: {pre.reasons[item.id]}</span>}
                   </span>
                 </label>
               ))}
@@ -83,8 +88,15 @@ export default function PostCheckSection({ detail }: { detail: Detail }) {
             </label>
             <div className="flex flex-wrap items-center justify-end gap-2">
               <ActorField />
-              <button formAction={holdPost} className={buttonVariants({ variant: "outline" })}>Hold with note</button>
-              <button formAction={verifyPost} className={buttonVariants()}>Mark verified</button>
+              <SubmitButton formAction={precheckPost} formNoValidate pending="Checking…" className={buttonVariants({ variant: "outline" })}>
+                Pre-check with AI
+              </SubmitButton>
+              <SubmitButton formAction={holdPost} pending="Holding…" className={buttonVariants({ variant: "outline" })}>
+                Hold with note
+              </SubmitButton>
+              <SubmitButton formAction={verifyPost} pending="Verifying…" className={buttonVariants()}>
+                Mark verified
+              </SubmitButton>
             </div>
           </form>
         )}

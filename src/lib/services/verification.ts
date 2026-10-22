@@ -4,6 +4,7 @@ import { writeAudit } from "@/lib/audit";
 import { compareInvoice, payoutAmountFor } from "@/lib/domain/invoice-match";
 import { parseUsdToCents } from "@/lib/domain/money";
 import { decidePostCheck } from "@/lib/domain/post-checklist";
+import { suggestTicks, type PostObservation } from "@/lib/domain/post-precheck";
 import { checkUpload, IMAGE_TYPES, INVOICE_TYPES, type UploadedFile } from "@/lib/domain/upload";
 import { isUuid } from "@/lib/uuid";
 import { queuePayout, type ActionResult } from "./payouts";
@@ -31,13 +32,12 @@ export async function submitPostCheck(input: {
   today: string;
 }): Promise<ActionResult> {
   if (!isUuid(input.assignmentId)) return { ok: false, reason: "Assignment not found" };
-  if (!input.file) return { ok: false, reason: "Upload the post screenshot" };
-  const fileError = checkUpload(input.file, IMAGE_TYPES);
-  if (fileError) return { ok: false, reason: fileError };
+  if (input.file) {
+    const fileError = checkUpload(input.file, IMAGE_TYPES);
+    if (fileError) return { ok: false, reason: fileError };
+  }
   const link = input.link.trim();
   if (link && !link.startsWith("https://")) return { ok: false, reason: "The post link must start with https://" };
-  const file = input.file;
-
   return db.transaction(async (tx): Promise<ActionResult> => {
     const row = await lockAssignment(tx, input.assignmentId);
     if (!row) return { ok: false, reason: "Assignment not found" };
@@ -49,12 +49,27 @@ export async function submitPostCheck(input: {
     if (decision.kind === "invalid") return { ok: false, reason: decision.error };
     const pass = decision.kind === "verified";
 
-    const [submission] = await tx
-      .insert(schema.submissions)
-      .values({ assignmentId: assignment.id, kind: "post_proof", fileName: file.name, fileType: file.type, file: file.bytes, link: link || null, submittedBy: input.actor })
-      .returning();
+    // No new file: reuse the screenshot the AI just pre-checked. Never a held one (a hold needs a new screenshot).
+    let submissionId: string;
+    if (input.file) {
+      const [s] = await tx
+        .insert(schema.submissions)
+        .values({ assignmentId: assignment.id, kind: "post_proof", fileName: input.file.name, fileType: input.file.type, file: input.file.bytes, link: link || null, submittedBy: input.actor })
+        .returning({ id: schema.submissions.id });
+      submissionId = s.id;
+    } else {
+      const [latest] = await tx
+        .select({ task: schema.verifications.task, submissionId: schema.verifications.submissionId })
+        .from(schema.verifications)
+        .innerJoin(schema.submissions, eq(schema.submissions.id, schema.verifications.submissionId))
+        .where(eq(schema.submissions.assignmentId, assignment.id))
+        .orderBy(desc(schema.verifications.createdAt))
+        .limit(1);
+      if (latest?.task !== "post_precheck") return { ok: false, reason: "Upload the post screenshot" };
+      submissionId = latest.submissionId;
+    }
     await tx.insert(schema.verifications).values({
-      submissionId: submission.id,
+      submissionId,
       source: "user",
       task: "post_checklist",
       pass,
@@ -166,6 +181,51 @@ export async function overrideInvoice(input: { assignmentId: string; reason: str
     await tx.update(schema.assignments).set({ status: "verified" }).where(eq(schema.assignments.id, row.assignment.id));
     await writeAudit(tx, { campaignId: row.campaign.id, actor: input.actor, action: "invoice.override", detail: { assignmentId: row.assignment.id, reason, invoicedCents, payoutCents: amountCents } });
     await queuePayout(tx, { campaignId: row.campaign.id, assignmentId: row.assignment.id, amountCents, payoutDate: row.assignment.payoutDate, today: input.today, actor: input.actor });
+    return { ok: true };
+  });
+}
+
+// R24: the pre-check stores the screenshot and the AI's suggestions. It never verifies: pass is false until staff confirm.
+export async function savePostPrecheck(input: {
+  assignmentId: string;
+  file: UploadedFile;
+  link: string;
+  observation: PostObservation;
+  model: string;
+  actor: string;
+}): Promise<ActionResult> {
+  if (!isUuid(input.assignmentId)) return { ok: false, reason: "Assignment not found" };
+  const fileError = checkUpload(input.file, IMAGE_TYPES);
+  if (fileError) return { ok: false, reason: fileError };
+  const link = input.link.trim();
+  if (link && !link.startsWith("https://")) return { ok: false, reason: "The post link must start with https://" };
+
+  return db.transaction(async (tx): Promise<ActionResult> => {
+    const row = await lockAssignment(tx, input.assignmentId);
+    if (!row) return { ok: false, reason: "Assignment not found" };
+    const { assignment, creator, campaign } = row;
+    if (creator.type !== "influencer" || !assignment.brief) return { ok: false, reason: "This assignment has no post checklist" };
+    if (assignment.status === "verified" || assignment.status === "paid") return { ok: false, reason: "This post is already verified" };
+
+    const ticks = suggestTicks(assignment.brief, input.observation);
+    const [submission] = await tx
+      .insert(schema.submissions)
+      .values({ assignmentId: assignment.id, kind: "post_proof", fileName: input.file.name, fileType: input.file.type, file: input.file.bytes, link: link || null, submittedBy: input.actor })
+      .returning();
+    await tx.insert(schema.verifications).values({
+      submissionId: submission.id,
+      source: "ai",
+      task: "post_precheck",
+      pass: false,
+      checks: { suggested: ticks.ticked, reasons: ticks.reasons, observed: input.observation, model: input.model },
+      createdBy: input.actor,
+    });
+    await writeAudit(tx, {
+      campaignId: campaign.id,
+      actor: input.actor,
+      action: "post.precheck",
+      detail: { assignmentId: assignment.id, readBy: input.model, suggested: ticks.ticked, confidence: input.observation.confidence },
+    });
     return { ok: true };
   });
 }

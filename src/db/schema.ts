@@ -11,7 +11,7 @@ export const invoiceKind = pgEnum("invoice_kind", ["deposit", "balance"]);
 export const invoiceStatus = pgEnum("invoice_status", ["draft", "sent", "paid"]);
 export const submissionKind = pgEnum("submission_kind", ["post_proof", "invoice"]);
 export const verificationSource = pgEnum("verification_source", ["user", "ai"]);
-export const verificationTask = pgEnum("verification_task", ["post_checklist", "invoice_match", "invoice_override"]);
+export const verificationTask = pgEnum("verification_task", ["post_checklist", "post_precheck", "invoice_match", "invoice_override"]);
 
 export const clients = pgTable("clients", {
   id: uuid("id").primaryKey().defaultRandom(),

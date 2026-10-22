@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { resetDb, seedAssignment } from "@/test/fixtures";
-import { overrideInvoice, submitInvoice, submitPostCheck } from "./verification";
+import { overrideInvoice, savePostPrecheck, submitInvoice, submitPostCheck } from "./verification";
 import { verificationLabel } from "./queries";
 
 const png = { name: "post.png", type: "image/png", size: 3, bytes: Buffer.from([1, 2, 3]) };
@@ -111,5 +111,33 @@ describe("submitInvoice read by AI", () => {
     const { assignment } = await seedAssignment({ type: "freelancer" });
     await submitInvoice({ ...who, ...fields, currency: "MYR", assignmentId: assignment.id, file: pdf });
     expect((await assignmentRow(assignment.id)).status).toBe("held");
+  });
+});
+
+describe("AI pre-check (R24)", () => {
+  const observation = { brandTagsSeen: ["@kopikita"], hashtagsSeen: ["#KopiKitaPagi", "#ad"], postedOn: "2026-10-24", confidence: 0.9 };
+
+  it("stores suggestions only: nothing is verified and no payout is queued", async () => {
+    const { assignment } = await seedAssignment(); // window 2026-10-23 – 2026-10-25
+    expect(await savePostPrecheck({ assignmentId: assignment.id, file: png, link: "", observation, model: "claude-haiku-5-5", actor: "Mei Tan" })).toEqual({ ok: true });
+    expect((await assignmentRow(assignment.id)).status).toBe("scheduled");
+    expect(await payoutsFor(assignment.id)).toHaveLength(0);
+    const [v] = await db.select().from(schema.verifications);
+    expect(v).toMatchObject({ source: "ai", task: "post_precheck", pass: false });
+    expect(v.checks).toMatchObject({ suggested: ["brandTag", "hashtags", "window"] });
+  });
+
+  it("lets staff confirm with the pre-checked screenshot, without uploading it again", async () => {
+    const { assignment } = await seedAssignment();
+    await savePostPrecheck({ assignmentId: assignment.id, file: png, link: "", observation, model: "claude-haiku-5-5", actor: "Mei Tan" });
+    expect(await submitPostCheck({ ...base, assignmentId: assignment.id, file: null, ticked: ALL, intent: "verify" })).toEqual({ ok: true });
+    expect(await db.select().from(schema.submissions)).toHaveLength(1);
+    expect(await payoutsFor(assignment.id)).toHaveLength(1);
+  });
+
+  it("does not reuse a held screenshot: a new one is needed after a hold", async () => {
+    const { assignment } = await seedAssignment();
+    await submitPostCheck({ ...base, assignmentId: assignment.id, file: png, ticked: ["brandTag"], intent: "hold", note: "No #ad" });
+    expect(await submitPostCheck({ ...base, assignmentId: assignment.id, file: null, ticked: ALL, intent: "verify" })).toEqual({ ok: false, reason: "Upload the post screenshot" });
   });
 });

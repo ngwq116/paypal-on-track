@@ -2,7 +2,7 @@ import { asc, desc, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { isUuid } from "@/lib/uuid";
 
-const TASK_LABEL = { post_checklist: "Post checklist", invoice_match: "Invoice matches", invoice_override: "Invoice override" } as const;
+const TASK_LABEL = { post_checklist: "Post checklist", post_precheck: "AI pre-check", invoice_match: "Invoice matches", invoice_override: "Invoice override" } as const;
 
 export async function verificationLabel(assignmentId: string): Promise<string> {
   const [v] = await db

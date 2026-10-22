@@ -1,11 +1,12 @@
 "use server";
 import { aiFromEnv } from "@/lib/ai/client";
 import { readInvoice, toInvoiceFields } from "@/lib/ai/invoice-reader";
+import { readPost } from "@/lib/ai/post-reader";
 import { AiReadError } from "@/lib/ai/read-file";
 import { agencyToday } from "@/lib/domain/today";
-import { checkUpload, INVOICE_TYPES } from "@/lib/domain/upload";
+import { checkUpload, IMAGE_TYPES, INVOICE_TYPES } from "@/lib/domain/upload";
 import { actorFrom, backTo, fileFrom, text } from "@/lib/form";
-import { overrideInvoice, submitInvoice, submitPostCheck } from "@/lib/services/verification";
+import { overrideInvoice, savePostPrecheck, submitInvoice, submitPostCheck } from "@/lib/services/verification";
 import { isUuid } from "@/lib/uuid";
 
 function pageOf(form: FormData): string {
@@ -83,4 +84,23 @@ export async function readInvoiceWithAi(form: FormData) {
     reader: { model: reading.model, confidence: reading.data.confidence },
   });
   backTo(here, r.ok ? "Invoice read by AI and checked against the contract." : r.reason);
+}
+
+// R24: the AI suggests ticks; staff still confirm with Mark verified.
+export async function precheckPost(form: FormData) {
+  const here = pageOf(form);
+  const file = await fileFrom(form, "proof");
+  if (!file) backTo(here, "Upload the post screenshot to pre-check it");
+  const fileError = checkUpload(file, IMAGE_TYPES);
+  if (fileError) backTo(here, fileError);
+
+  let reading: Awaited<ReturnType<typeof readPost>>;
+  try {
+    reading = await readPost(aiFromEnv(), file, agencyToday());
+  } catch (err) {
+    console.error("[ai] post pre-check failed", err);
+    backTo(here, `${err instanceof AiReadError ? err.message : "The AI couldn't be reached"}. Tick the checklist yourself.`);
+  }
+  const r = await savePostPrecheck({ assignmentId: text(form, "assignmentId"), file, link: text(form, "link"), observation: reading.data, model: reading.model, actor: actorFrom(form) });
+  backTo(here, r.ok ? "AI pre-check done. Review the suggested ticks, then confirm." : r.reason);
 }

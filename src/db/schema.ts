@@ -69,6 +69,7 @@ export const payouts = pgTable("payouts", {
   approvedAt: timestamp("approved_at", { withTimezone: true }),
   paypalBatchId: text("paypal_batch_id"),
   statusReason: text("status_reason"), // why it is held or failed
+  attempt: integer("attempt").notNull().default(1), // a retry after a failure is attempt 2, 3…: PayPal needs a new sender_batch_id
   status: payoutStatus("status").notNull().default("awaiting_approval"),
 });
 

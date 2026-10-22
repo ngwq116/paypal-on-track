@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { createPayPalClient, PayPalError } from "./client";
 import { toPayPalValue } from "./money";
-import { buildPayoutBody } from "./payouts";
+import { buildPayoutBody, senderBatchId } from "./payouts";
 
 const cfg = { clientId: "id", clientSecret: "secret", baseUrl: "https://api-m.sandbox.paypal.com" };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
@@ -86,5 +86,15 @@ describe("buildPayoutBody", () => {
     expect(a.items[0].sender_item_id).toBe("p-123");
     expect(a).toEqual(b);
     expect(a.items[0].amount).toEqual({ value: "1200.00", currency: "USD" });
+  });
+});
+
+describe("senderBatchId", () => {
+  it("is the payout id on the first attempt and payout id + attempt on a retry; the item id never changes", () => {
+    expect(senderBatchId("p-123", 1)).toBe("p-123");
+    expect(senderBatchId("p-123", 2)).toBe("p-123-2");
+    const body = buildPayoutBody({ payoutId: "p-123", receiverEmail: "c@example.com", amountCents: 100, note: "x", attempt: 2 });
+    expect(body.sender_batch_header.sender_batch_id).toBe("p-123-2");
+    expect(body.items[0].sender_item_id).toBe("p-123");
   });
 });

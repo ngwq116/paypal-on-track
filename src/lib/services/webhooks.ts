@@ -29,6 +29,9 @@ export async function handlePayPalEvent(event: PayPalWebhookEvent): Promise<"pro
         .for("update");
       if (!row) return "ignored";
       if (row.payout.status === "paid") return "processed"; // out-of-order event after success: keep paid
+      // Only the attempt in flight can be settled: a late event from an earlier, failed attempt must not touch a retry.
+      if (row.payout.status !== "payout_sent") return "ignored";
+      if (e.batchId && row.payout.paypalBatchId && e.batchId !== row.payout.paypalBatchId) return "ignored";
 
       if (e.outcome === "paid") {
         await tx.update(schema.payouts).set({ status: "paid", statusReason: null }).where(eq(schema.payouts.id, row.payout.id));

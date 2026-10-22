@@ -341,7 +341,8 @@ describe("retryPayout", () => {
     await approvePayout(payout.id, "Mei Tan");
     const { pp, request } = fakePayPal();
     expect(await sendPayout(pp, payout.id, "Mei Tan")).toEqual({ ok: true });
-    expect(request.mock.calls[0][2].sender_batch_header.sender_batch_id).toBe(`${payout.id}-2`);
+    const body = request.mock.calls[0][2] as { sender_batch_header: { sender_batch_id: string } };
+    expect(body.sender_batch_header.sender_batch_id).toBe(`${payout.id}-2`);
   });
 });
 ```

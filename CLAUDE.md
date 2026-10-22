@@ -26,7 +26,7 @@ AI payment desk for marketing agencies: bill clients through PayPal, pay influen
 - **No payout leaves without `canPay()` returning `allow`** (`src/lib/domain/guardrails.ts`). It must be called at approval and again right before `createPayout()`. Never call `createPayout()` from anywhere else.
 - **Every payout needs a person's approval.** There is no auto-approve. The AI or agent may only propose; it never sends money.
 - A payout amount can never exceed the assignment's contract fee. Edits go through `validatePayoutEdit()`: lower amount or move date only, reason required, editing a scheduled payout resets approval.
-- PayPal `sender_batch_id` and `sender_item_id` = our payout row id (idempotency: a retry must not pay twice).
+- PayPal `sender_item_id` = our payout row id; `sender_batch_id` = the payout id on the first attempt and `<payout id>-<attempt>` on a retry (`senderBatchId()`). A retry must not pay twice: it needs approval again, and stale webhook events from earlier attempts are ignored.
 - The PayPal MCP server / Agent Toolkit has **no Payouts tools**. Payouts go through our REST client in `src/lib/paypal/payouts.ts`.
 - **Never commit `.env`** or print secrets. The repo is public. Run `git status` before every commit.
 - AI model: `claude-haiku-5-5` via `AI_MODEL` (fallback `claude-sonnet-5-5`). The AI reads documents; comparisons and decisions are plain code.

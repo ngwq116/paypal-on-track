@@ -6,11 +6,16 @@ interface PayoutInput {
   receiverEmail: string;
   amountCents: number;
   note: string;
+  attempt?: number; // 1 unless this is a retry after a failure
 }
+
+// PayPal remembers a sender_batch_id and refuses it again, so a retry needs a new one. The item id stays the payout id,
+// which is what our webhook matches on.
+export const senderBatchId = (payoutId: string, attempt: number): string => (attempt <= 1 ? payoutId : `${payoutId}-${attempt}`);
 
 export function buildPayoutBody(input: PayoutInput) {
   return {
-    sender_batch_header: { sender_batch_id: input.payoutId, email_subject: "You have a payout from Studio Rakan" },
+    sender_batch_header: { sender_batch_id: senderBatchId(input.payoutId, input.attempt ?? 1), email_subject: "You have a payout from Studio Rakan" },
     items: [
       {
         recipient_type: "EMAIL" as const,

@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { PayPalError, type PayPalClient } from "@/lib/paypal/client";
 import { resetDb, seedPayout } from "@/test/fixtures";
-import { approvePayout, editPayout, rejectPayout, runDuePayouts, sendPayout } from "./payouts";
+import { approvePayout, editPayout, rejectPayout, retryPayout, runDuePayouts, sendPayout } from "./payouts";
 
 function fakePayPal(impl?: (method: string, path: string, body?: unknown) => Promise<unknown>) {
   const request = vi.fn(impl ?? (async () => ({ batch_header: { payout_batch_id: "BATCH-1", batch_status: "PENDING" } })));
@@ -125,5 +125,27 @@ describe("runDuePayouts", () => {
     expect(await runDuePayouts(pp, "2026-10-28")).toEqual([]);
     expect(await runDuePayouts(pp, "2026-10-29")).toEqual([{ id: due.payout.id, result: { ok: true } }]);
     expect(request).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("retryPayout", () => {
+  it("sends a failed payout back for approval as the next attempt", async () => {
+    const { payout } = await seedPayout({ status: "payout_failed", approvedBy: "Mei Tan", paypalBatchId: "OLD" });
+    expect(await retryPayout(payout.id, "Hana Aziz")).toEqual({ ok: true });
+    expect(await payoutRow(payout.id)).toMatchObject({ status: "awaiting_approval", attempt: 2, approvedBy: null, paypalBatchId: null, statusReason: null });
+    expect(await actions()).toContain("payout.retry_queued");
+  });
+  it("only retries a failed payout", async () => {
+    const { payout } = await seedPayout({ status: "scheduled", approvedBy: "Mei Tan" });
+    expect(await retryPayout(payout.id, "Mei Tan")).toEqual({ ok: false, reason: "Only a failed payout can be retried" });
+  });
+  it("sends attempt 2 with a new sender_batch_id", async () => {
+    const { payout } = await seedPayout({ status: "payout_failed", approvedBy: "Mei Tan" });
+    await retryPayout(payout.id, "Mei Tan");
+    await approvePayout(payout.id, "Mei Tan");
+    const { pp, request } = fakePayPal();
+    expect(await sendPayout(pp, payout.id, "Mei Tan")).toEqual({ ok: true });
+    const body = request.mock.calls[0][2] as { sender_batch_header: { sender_batch_id: string } };
+    expect(body.sender_batch_header.sender_batch_id).toBe(`${payout.id}-2`);
   });
 });

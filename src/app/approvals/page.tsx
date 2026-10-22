@@ -5,7 +5,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { formatDay } from "@/lib/domain/format";
 import { formatUsd } from "@/lib/domain/money";
 import { listApprovalRows } from "@/lib/services/queries";
-import { approveOne, approveSelected, sendNow } from "./actions";
+import { approveOne, approveSelected, retryFailed, sendNow } from "./actions";
 
 type SearchParams = Promise<{ notice?: string }>;
 
@@ -104,7 +104,14 @@ async function Queue({ searchParams }: { searchParams: SearchParams }) {
                         </button>
                       )}
                       {payout.status === "payout_sent" && <span className="text-xs text-zinc-500">Sent via PayPal</span>}
-                      {payout.status === "payout_failed" && <span className="text-xs font-medium text-red-700">Failed · {payout.statusReason}</span>}
+                      {payout.status === "payout_failed" && (
+                        <>
+                          <span className="text-xs font-medium text-red-700">Failed · {payout.statusReason}</span>
+                          <button formAction={retryFailed.bind(null, payout.id)} className={buttonVariants({ size: "sm", variant: "outline" })}>
+                            Retry
+                          </button>
+                        </>
+                      )}
                       {(awaiting || payout.status === "scheduled") && (
                         <a href={`/approvals/${payout.id}`} className="text-xs text-zinc-600 underline-offset-4 hover:underline">
                           Edit or reject

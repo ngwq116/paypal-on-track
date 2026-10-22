@@ -146,6 +146,7 @@ export async function sendPayout(pp: PayPalClient, payoutId: string, actor: stri
       receiverEmail: creator.paypalEmail,
       amountCents: payout.amountCents,
       note: `${campaign.name} · ${assignment.deliverable}`,
+      attempt: payout.attempt,
     });
     await db.update(schema.payouts).set({ paypalBatchId: res.batchId }).where(eq(schema.payouts.id, payout.id));
     await writeAudit(db, { campaignId: campaign.id, actor, action: "payout.sent", detail: { payoutId: payout.id, batchId: res.batchId, batchStatus: res.status } });
@@ -216,4 +217,26 @@ export async function runDuePayouts(pp: PayPalClient, today: string, actor = "da
   const out: Array<{ id: string; result: ActionResult }> = [];
   for (const { id } of due) out.push({ id, result: await sendPayout(pp, id, actor) });
   return out;
+}
+
+// A failed payout goes back to the queue as the next attempt. A person approves it again before anything is sent.
+export async function retryPayout(payoutId: string, actor: string): Promise<ActionResult> {
+  if (!isUuid(payoutId)) return NOT_FOUND;
+  return db.transaction(async (tx): Promise<ActionResult> => {
+    const row = await lockPayout(tx, payoutId);
+    if (!row) return NOT_FOUND;
+    if (row.payout.status !== "payout_failed") return { ok: false, reason: "Only a failed payout can be retried" };
+    const attempt = row.payout.attempt + 1;
+    await tx
+      .update(schema.payouts)
+      .set({ status: "awaiting_approval", attempt, approvedBy: null, approvedAt: null, paypalBatchId: null, statusReason: null })
+      .where(eq(schema.payouts.id, payoutId));
+    await writeAudit(tx, {
+      campaignId: row.campaign.id,
+      actor,
+      action: "payout.retry_queued",
+      detail: { payoutId, attempt, previousReason: row.payout.statusReason },
+    });
+    return { ok: true };
+  });
 }

@@ -3,7 +3,7 @@ import { agencyToday } from "@/lib/domain/today";
 import { parseUsdToCents } from "@/lib/domain/money";
 import { actorFrom, backTo, text } from "@/lib/form";
 import { payPalFromEnv } from "@/lib/paypal/client";
-import { approvePayouts, editPayout, rejectPayout, sendPayout, type ActionResult } from "@/lib/services/payouts";
+import { approvePayouts, editPayout, rejectPayout, retryPayout, sendPayout, type ActionResult } from "@/lib/services/payouts";
 
 function summarize(results: Array<{ result: ActionResult }>): string {
   const done = results.filter((r) => r.result.ok).length;
@@ -42,4 +42,9 @@ export async function reject(form: FormData) {
   const r = await rejectPayout(payoutId, actorFrom(form), text(form, "reason"));
   if (!r.ok) backTo(`/approvals/${payoutId}`, r.reason);
   backTo("/approvals", "Payout rejected and held. The reason is in the audit log.");
+}
+
+export async function retryFailed(payoutId: string, form: FormData) {
+  const r = await retryPayout(payoutId, actorFrom(form));
+  backTo("/approvals", r.ok ? "Payout queued again. Approve it to send the retry." : r.reason);
 }

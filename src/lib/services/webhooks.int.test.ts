@@ -53,3 +53,16 @@ describe("handlePayPalEvent", () => {
     expect(await handlePayPalEvent({ id: "WH-6", event_type: "INVOICING.INVOICE.PAID", resource: { id: "INV2-UNKNOWN" } })).toBe("duplicate");
   });
 });
+
+describe("stale events from an earlier attempt", () => {
+  it("are ignored while the retry waits for approval", async () => {
+    const { payout } = await seedPayout({ status: "awaiting_approval" });
+    expect(await handlePayPalEvent({ id: "WH-7", event_type: "PAYMENT.PAYOUTS-ITEM.FAILED", resource: { payout_batch_id: "OLD", payout_item: { sender_item_id: payout.id } } })).toBe("ignored");
+    expect((await payoutRow(payout.id)).status).toBe("awaiting_approval");
+  });
+  it("are ignored when they name a different batch than the one sent", async () => {
+    const { payout } = await seedPayout({ status: "payout_sent", approvedBy: "Mei Tan", paypalBatchId: "NEW" });
+    expect(await handlePayPalEvent({ id: "WH-8", event_type: "PAYMENT.PAYOUTS-ITEM.SUCCEEDED", resource: { payout_batch_id: "OLD", payout_item: { sender_item_id: payout.id } } })).toBe("ignored");
+    expect((await payoutRow(payout.id)).status).toBe("payout_sent");
+  });
+});

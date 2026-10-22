@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
+import ResetDemoForm from "@/components/ResetDemoForm";
 import { db, schema } from "@/db";
 
 export default function Home() {
@@ -12,6 +13,9 @@ export default function Home() {
       <Suspense fallback={<p className="text-sm text-zinc-500">Loading campaigns…</p>}>
         <CampaignList />
       </Suspense>
+      <Suspense fallback={null}>
+        <ResetDemoForm />
+      </Suspense>
     </main>
   );
 }
@@ -22,7 +26,7 @@ async function CampaignList() {
   if (campaigns.length === 0) {
     return (
       <p className="rounded-[10px] border border-zinc-200 p-4 text-sm text-zinc-500">
-        No campaigns yet. Run <code className="font-mono">npm run db:seed</code> to load the demo campaign.
+        No campaigns yet. Create one from a contract above, or load the demo with <code className="font-mono">npm run db:seed</code>.
       </p>
     );
   }

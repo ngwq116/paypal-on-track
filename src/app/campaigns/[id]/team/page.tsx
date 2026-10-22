@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import AssignmentsTable from "@/components/AssignmentsTable";
 import BalanceProposal from "@/components/BalanceProposal";
 import CampaignHeader from "@/components/CampaignHeader";
+import CampaignSummary from "@/components/CampaignSummary";
 import DepositPanel from "@/components/DepositPanel";
 import Notice from "@/components/Notice";
 import TeamScheduler from "@/components/TeamScheduler";
@@ -32,6 +33,7 @@ async function TeamContent({ params, searchParams }: Props) {
   return (
     <>
       <CampaignHeader campaign={data.campaign} clientName={clientName} active="team" />
+      <CampaignSummary campaignId={id} />
       <Notice text={notice} />
       <DepositPanel campaignId={id} />
       <BalanceProposal campaignId={id} view="team" />

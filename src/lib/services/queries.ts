@@ -84,3 +84,15 @@ export async function getAssignmentDetail(assignmentId: string) {
 export async function listAuditEvents(campaignId: string) {
   return db.select().from(schema.auditEvents).where(eq(schema.auditEvents.campaignId, campaignId)).orderBy(desc(schema.auditEvents.at)).limit(200);
 }
+
+export async function getSummaryInput(campaignId: string) {
+  const invoices = await db.select({ amountCents: schema.clientInvoices.amountCents, status: schema.clientInvoices.status }).from(schema.clientInvoices).where(eq(schema.clientInvoices.campaignId, campaignId));
+  const assignments = await db.select({ id: schema.assignments.id, feeCents: schema.assignments.feeCents }).from(schema.assignments).where(eq(schema.assignments.campaignId, campaignId));
+  const payouts = assignments.length
+    ? await db
+        .select({ assignmentId: schema.payouts.assignmentId, amountCents: schema.payouts.amountCents, status: schema.payouts.status })
+        .from(schema.payouts)
+        .where(inArray(schema.payouts.assignmentId, assignments.map((a) => a.id)))
+    : [];
+  return { invoices, assignments, payouts };
+}

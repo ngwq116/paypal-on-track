@@ -18,7 +18,8 @@ export async function loadTimeline(campaignId: string) {
     .from(schema.assignments)
     .innerJoin(schema.creators, eq(schema.creators.id, schema.assignments.creatorId))
     .where(eq(schema.assignments.campaignId, campaignId))
-    .orderBy(asc(schema.creators.name), asc(schema.assignments.dueDate)); // stable rows: refreshes and drags must not reorder them
+    // Influencers first, then freelancers (enum order), then by name: stable, so refreshes and drags never reorder rows.
+    .orderBy(asc(schema.creators.type), asc(schema.creators.name), asc(schema.assignments.dueDate));
 
   const invoices = await db.select().from(schema.clientInvoices).where(eq(schema.clientInvoices.campaignId, campaignId));
   const ids = rows.map((r) => r.a.id);

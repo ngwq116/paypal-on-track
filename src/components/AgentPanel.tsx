@@ -1,5 +1,6 @@
 import { askAgent } from "@/app/campaigns/[id]/agent-actions";
 import { approveSelected } from "@/app/approvals/actions";
+import ScrollToHash from "@/components/ScrollToHash";
 import SubmitButton from "@/components/SubmitButton";
 import { buttonVariants } from "@/components/ui/button";
 import { formatUsd } from "@/lib/domain/money";
@@ -10,6 +11,7 @@ export default async function AgentPanel({ campaignId, plan, summary }: { campai
   const okCount = rows?.filter((r) => r.check === "ok").length ?? 0;
   return (
     <section id="agent" aria-label="Agent" className="flex flex-col gap-3 rounded-[10px] border border-zinc-200 p-4">
+      {rows && <ScrollToHash id="agent" />}
       <form action={askAgent} className="flex flex-wrap items-center gap-3">
         <input type="hidden" name="campaignId" value={campaignId} />
         <label className="flex min-w-[260px] flex-1 flex-col gap-1 text-sm font-medium">

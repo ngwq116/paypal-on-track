@@ -159,3 +159,11 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
+
+/* Calendar "today": a solid zinc dot instead of Bryntum's blue ring */
+.b-calendar {
+  --b-month-view-today-day-num-background: #18181b;
+  --b-month-view-today-day-num-color: #fafafa;
+  --b-month-view-today-day-num-border: 1px solid #18181b;
+  --b-month-view-today-day-num-font-weight: 600;
+}

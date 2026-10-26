@@ -6,6 +6,15 @@ export function formatDay(day: string): string {
   return `${MONTHS[m - 1]} ${d}`;
 }
 
+// "2026-10-19", "2026-11-20" → "Oct 19 – Nov 20, 2026". String parsing only, no Date (no timezone shift).
+export function formatRange(start: string, end: string): string {
+  const [sy, sm, sd] = start.split("-").map(Number);
+  const [ey, em, ed] = end.split("-").map(Number);
+  const s = `${MONTHS[sm - 1]} ${sd}`;
+  const e = `${MONTHS[em - 1]} ${ed}`;
+  return sy === ey ? `${s} – ${e}, ${ey}` : `${s}, ${sy} – ${e}, ${ey}`;
+}
+
 // "2026-10-19" and a real calendar day (no Feb 30). Uses Date only to validate, in UTC.
 export function isDay(s: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;

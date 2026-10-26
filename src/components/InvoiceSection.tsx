@@ -1,6 +1,6 @@
+import { Sparkles } from "lucide-react";
 import { checkInvoice, overrideHeldInvoice, readInvoiceWithAi } from "@/app/campaigns/[id]/assignments/[assignmentId]/actions";
-import ActorField from "@/components/ActorField";
-import FileInput from "@/components/FileInput";
+import FileDrop from "@/components/FileDrop";
 import SubmitButton from "@/components/SubmitButton";
 import { buttonVariants } from "@/components/ui/button";
 import type { FieldComparison } from "@/lib/domain/invoice-match";
@@ -70,7 +70,6 @@ export default function InvoiceSection({ detail }: { detail: Detail }) {
             <span className="text-xs font-normal text-zinc-500">Pays what was invoiced, capped at the contract fee of {formatUsd(assignment.feeCents)}.</span>
           </label>
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <ActorField />
             <button className={buttonVariants({ variant: "outline" })}>Override with reason</button>
           </div>
         </form>
@@ -80,28 +79,35 @@ export default function InvoiceSection({ detail }: { detail: Detail }) {
         <form action={checkInvoice} className="flex flex-col gap-4 rounded-[10px] border border-zinc-200 p-4">
           {hidden}
           <h2 className="text-[15px] font-semibold">{fields.length ? "Upload a corrected invoice" : "Check the invoice"}</h2>
-          <label className="flex flex-col gap-1.5 text-sm font-medium">
-            Invoice file
-            <FileInput name="invoice" accept="application/pdf,image/png,image/jpeg,image/webp" className="text-sm font-normal" />
-          </label>
-          <p className="text-xs text-zinc-500">
-            <strong className="font-medium text-zinc-700">Read with AI</strong> fills the fields from the file and checks them. Or type what the invoice says and click Check typed fields. Either way the comparison is On-Track&apos;s own rules.
-          </p>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="flex flex-col gap-1.5 text-sm font-medium">Payee<input name="payee" required className={input} /></label>
-            <label className="flex flex-col gap-1.5 text-sm font-medium">PayPal email<input name="paypalEmail" type="email" required className={input} /></label>
-            <label className="flex flex-col gap-1.5 text-sm font-medium">Deliverable<input name="deliverable" required className={input} /></label>
-            <label className="flex flex-col gap-1.5 text-sm font-medium">Amount (USD)<input name="amount" inputMode="decimal" placeholder="1,000.00" required className={input} /></label>
-          </div>
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <ActorField />
-            <SubmitButton formAction={readInvoiceWithAi} formNoValidate pending="Reading…" className={buttonVariants()}>
-              Read with AI
+          <FileDrop
+            name="invoice"
+            accept="application/pdf,image/png,image/jpeg,image/webp"
+            title={`Add ${detail.creator.name}'s invoice`}
+            hint="PDF or image, up to 4 MB"
+          />
+          <div className="flex flex-wrap items-center gap-3">
+            <SubmitButton formAction={readInvoiceWithAi} formNoValidate pending="Reading the invoice…" className={buttonVariants({ size: "main" })}>
+              <Sparkles aria-hidden="true" />
+              Read invoice with AI
             </SubmitButton>
-            <SubmitButton formAction={checkInvoice} pending="Checking…" className={buttonVariants({ variant: "outline" })}>
-              Check typed fields
-            </SubmitButton>
+            <span className="text-[13px] text-zinc-600">The AI fills the fields; On-Track&apos;s own rules compare them with the contract.</span>
           </div>
+          <details className="border-t border-zinc-100 pt-3">
+            <summary className="cursor-pointer text-sm font-medium">Type the fields instead</summary>
+            <div className="mt-3 flex flex-col gap-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="flex flex-col gap-1.5 text-sm font-medium">Payee<input name="payee" required className={input} /></label>
+                <label className="flex flex-col gap-1.5 text-sm font-medium">PayPal email<input name="paypalEmail" type="email" required className={input} /></label>
+                <label className="flex flex-col gap-1.5 text-sm font-medium">Deliverable<input name="deliverable" required className={input} /></label>
+                <label className="flex flex-col gap-1.5 text-sm font-medium">Amount (USD)<input name="amount" inputMode="decimal" placeholder="1,000.00" required className={input} /></label>
+              </div>
+              <div>
+                <SubmitButton formAction={checkInvoice} pending="Checking…" className={buttonVariants({ variant: "outline", size: "lg" })}>
+                  Check typed fields against the contract
+                </SubmitButton>
+              </div>
+            </div>
+          </details>
         </form>
       )}
     </div>

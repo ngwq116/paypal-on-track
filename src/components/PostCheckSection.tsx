@@ -1,6 +1,6 @@
+import { Check, Sparkles } from "lucide-react";
 import { holdPost, precheckPost, verifyPost } from "@/app/campaigns/[id]/assignments/[assignmentId]/actions";
-import ActorField from "@/components/ActorField";
-import FileInput from "@/components/FileInput";
+import FileDrop from "@/components/FileDrop";
 import SubmitButton from "@/components/SubmitButton";
 import { buttonVariants } from "@/components/ui/button";
 import { formatDay } from "@/lib/domain/format";
@@ -58,13 +58,14 @@ export default function PostCheckSection({ detail }: { detail: Detail }) {
           <form key={latest?.submissionId ?? "none"} className="flex flex-col gap-4">
             <input type="hidden" name="campaignId" value={campaign.id} />
             <input type="hidden" name="assignmentId" value={assignment.id} />
-            <label className="flex flex-col gap-1.5 text-sm font-medium">
-              Post screenshot
-              <FileInput name="proof" accept="image/png,image/jpeg,image/webp" required={!pre} className="text-sm" />
-              <span className="text-xs font-normal text-zinc-500">
-                {pre ? "Using the screenshot the AI checked. Choose a new file only to replace it." : "PNG, JPEG or WebP, up to 4 MB. Sent by the creator, uploaded by you."}
-              </span>
-            </label>
+            <FileDrop
+              name="proof"
+              accept="image/png,image/jpeg,image/webp"
+              required={!pre}
+              compact
+              title={pre ? "Replace the screenshot (optional)" : "Add post screenshot"}
+              hint={pre ? "the AI-checked one is used otherwise" : "PNG, JPEG or WebP, up to 4 MB"}
+            />
             <label className="flex flex-col gap-1.5 text-sm font-medium">
               Post link (optional)
               <input type="url" name="link" placeholder="https://instagram.com/p/…" className="min-h-10 rounded-md border border-zinc-200 px-3 text-sm" />
@@ -86,15 +87,17 @@ export default function PostCheckSection({ detail }: { detail: Detail }) {
               Note (needed to hold)
               <textarea name="note" rows={2} placeholder="What's missing? This goes in the audit log." className="rounded-md border border-zinc-200 px-3 py-2 text-sm" />
             </label>
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <ActorField />
-              <SubmitButton formAction={precheckPost} formNoValidate pending="Checking…" className={buttonVariants({ variant: "outline" })}>
+            <div className="flex flex-wrap items-center gap-2 border-t border-zinc-100 pt-4">
+              <SubmitButton formAction={precheckPost} formNoValidate pending="Checking…" className={buttonVariants({ variant: "outline", size: "main" })}>
+                <Sparkles aria-hidden="true" />
                 Pre-check with AI
               </SubmitButton>
-              <SubmitButton formAction={holdPost} pending="Holding…" className={buttonVariants({ variant: "outline" })}>
+              <span className="flex-1" />
+              <SubmitButton formAction={holdPost} pending="Holding…" className={buttonVariants({ variant: "outline", size: "main" })}>
                 Hold with note
               </SubmitButton>
-              <SubmitButton formAction={verifyPost} pending="Verifying…" className={buttonVariants()}>
+              <SubmitButton formAction={verifyPost} pending="Verifying…" className={buttonVariants({ size: "main" })}>
+                <Check aria-hidden="true" />
                 Mark verified
               </SubmitButton>
             </div>

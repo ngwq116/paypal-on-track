@@ -11,6 +11,7 @@ import type { TimelineEvent, TimelineResource } from "@/lib/events";
 import { moveAssignment } from "@/app/campaigns/[id]/view-actions";
 import EventPanel from "./EventPanel";
 import { useAutoRefresh } from "./useAutoRefresh";
+import { useShown } from "./useShown";
 import { getActor } from "./actor-cookie";
 
 export default function CampaignCalendarInner(props: { resources: TimelineResource[]; events: TimelineEvent[]; date: string }) {
@@ -19,6 +20,7 @@ export default function CampaignCalendarInner(props: { resources: TimelineResour
   const close = useCallback(() => setSelectedId(null), []);
   const selected = props.events.find((e) => e.id === selectedId); // looked up each render, so the panel stays fresh
   useAutoRefresh(3, dragging);
+  const shown = useShown(); // see useShown: never keep a Bryntum widget mounted on a hidden page
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
@@ -37,32 +39,34 @@ export default function CampaignCalendarInner(props: { resources: TimelineResour
         </p>
       )}
       <div className="h-[760px] overflow-hidden rounded-[10px] border border-zinc-200">
-        <BryntumCalendar
-          date={props.date}
-          mode="month"
-          modes={{ year: false, agenda: false }}
-          sidebar={null}
-          weekStartDay={1}
-          resources={props.resources}
-          events={props.events}
-          // Only posts and deliverables move (each event's `draggable`). No editing, creating or menus.
-          eventEditFeature={false}
-          eventMenuFeature={false}
-          scheduleMenuFeature={false}
-          dragFeature={{ creatable: false }}
-          onBeforeDragMove={() => {
-            dragging.current = true;
-          }}
-          onBeforeDragMoveEnd={({ eventRecord, newStartDate }) => {
-            void save(String(eventRecord.id), newStartDate);
-          }}
-          onDragMoveEnd={() => {
-            dragging.current = false;
-          }}
-          // Our EventPanel shows the details (R18); Bryntum's own popup would duplicate it with an edit button.
-          eventTooltipFeature={false}
-          onEventClick={({ eventRecord }) => setSelectedId(String(eventRecord.id))}
-        />
+        {shown && (
+          <BryntumCalendar
+            date={props.date}
+            mode="month"
+            modes={{ year: false, agenda: false }}
+            sidebar={null}
+            weekStartDay={1}
+            resources={props.resources}
+            events={props.events}
+            // Only posts and deliverables move (each event's `draggable`). No editing, creating or menus.
+            eventEditFeature={false}
+            eventMenuFeature={false}
+            scheduleMenuFeature={false}
+            dragFeature={{ creatable: false }}
+            onBeforeDragMove={() => {
+              dragging.current = true;
+            }}
+            onBeforeDragMoveEnd={({ eventRecord, newStartDate }) => {
+              void save(String(eventRecord.id), newStartDate);
+            }}
+            onDragMoveEnd={() => {
+              dragging.current = false;
+            }}
+            // Our EventPanel shows the details (R18); Bryntum's own popup would duplicate it with an edit button.
+            eventTooltipFeature={false}
+            onEventClick={({ eventRecord }) => setSelectedId(String(eventRecord.id))}
+          />
+        )}
       </div>
       <EventPanel event={selected} onClose={close} />
     </>

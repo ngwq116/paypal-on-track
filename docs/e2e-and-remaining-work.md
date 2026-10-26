@@ -1,14 +1,10 @@
 # On-Track: remaining work and end-to-end test guide
 
-Written 2026-10-22, after Phase 4 Tasks 1–7. Deadline: **Nov 12, 2026, 12:00pm PST** (plan: submit **Nov 11**).
+Updated 2026-10-26. Deadline: **Nov 12, 2026, 12:00pm PST** (plan: submit **Nov 11**).
 
-This file has three parts:
-
-1. [What is done](#1-what-is-done): one paragraph per phase.
-2. [What is still to do](#2-what-is-still-to-do): every open item, in order.
-3. [End-to-end test guide](#3-end-to-end-test-guide): setup, helpers, and about 120 test cases with exact expected results.
-
-`docs/test-plan.html` is the older clickable checklist for Phases 1–2. This file supersedes it and covers everything up to Phase 4.
+1. [What is done](#1-what-is-done)
+2. [What is still to do](#2-what-is-still-to-do)
+3. [End-to-end test guide](#3-end-to-end-test-guide): setup, helpers and the test cases. `docs/test-plan.html` is generated from this file (one card per case, Pass/Fail saved in the browser).
 
 ---
 
@@ -16,66 +12,116 @@ This file has three parts:
 
 | Phase | Commits | What it covers |
 |---|---|---|
-| 1 Foundations | up to `d1693f2` | Next.js app, Postgres in Docker, PayPal client (token cache, 401 retry), payout guardrails (`canPay`, `validatePayoutEdit`), Team (Bryntum Scheduler) and Calendar views on seed data, `npm run paypal:smoke` |
-| 2 Money flows | up to `11cf231` | Deposit and balance invoices in PayPal, verified PayPal webhook (invoice paid, payout item events), approval queue (approve, batch, edit, reject, Send now), post checklist, freelancer invoice match + override, daily run route, audit log, file upload rules, Check payment fallback |
-| 3 AI and views | up to `6888cc6` | Claude reads freelancer invoices and contracts (structured output, code decides), eval set (invoices 5/5 caught, 0/5 false holds; contracts 3/3 every field), contract upload → review → create campaign, overdue colours, side panel, 3-second live refresh, week view, drag to reschedule, balance due-date proposal that updates the PayPal invoice |
-| 4 Polish | `4369152`…`ce667f3` | Reset demo button, retry a failed payout, one "Acting as" picker (later replaced by a single signed-in user), campaign summary (R20), AI post pre-check (R24), agent that proposes approvals (R22), README, MIT licence, docs updated to local-first |
+| 1 Foundations | up to `d1693f2` | Next.js app, Postgres in Docker, PayPal client (token cache, 401 retry), payout guardrails (`canPay`, `validatePayoutEdit`), Team (Bryntum Scheduler) and Calendar views, `npm run paypal:smoke` |
+| 2 Money flows | up to `11cf231` | Deposit and balance invoices in PayPal, verified PayPal webhook, approval queue (approve, batch, edit, reject, Send now), post checklist, freelancer invoice match + override, daily run route, audit log, upload rules, Check payment fallback |
+| 3 AI and views | up to `6888cc6` | Claude reads invoices and contracts (structured output, code decides), eval set (invoices 5/5 caught, 0/5 false holds; contracts 3/3), contract upload → review → create campaign, overdue colours, side panel, 3-second refresh, drag to reschedule, balance due-date proposal that updates the PayPal invoice |
+| 4 Polish | `4369152`…`ce667f3` | Reset demo, retry a failed payout, campaign summary (R20), AI post pre-check (R24), agent that proposes approvals (R22), README, MIT licence |
+| After e2e | `2d74f26`…now | Next.js 16.4.3 security upgrade; demo dates moved to Nov 16 – Dec 18; Back/Forward crash fix; one signed-in user (Wanz) instead of the "Acting as" picker; clearer buttons and drop-zone uploads; separate influencer and freelancer tables; Team view spans the whole campaign; Calendar chips name the creator and wrap; known small issues fixed; `docs/architecture.html` matches the code |
 
-Automated tests at handover: **103 unit**, **70 integration**, production build passes.
+Automated tests: **107 unit**, **70 integration**, production build passes. E2E run done by hand on 2026-10-26: only UI nitpicks, all fixed.
 
 ---
 
 ## 2. What is still to do
 
-Work top to bottom. Tick as you go.
+### 2.1 Before submitting (by Nov 11)
 
-### 2.1 Must do before submitting
+- [x] Run the end-to-end tests (done 2026-10-26).
+- [x] Fix what the run found (UI nitpicks, done).
+- [ ] **Three real-PayPal checks**, only if your run didn't already cover them: **G14** (due-date change on a *sent* balance invoice), **E16** (a retried payout pays with `sender_batch_id` = `<payout id>-2`), **G11** (the 3-second refresh doesn't cancel a slow drag).
+- [ ] **Record the video** (≤ 2:50) following the PRD demo script (section 3.5 is the same flow). 2–3 takes, **Reset demo** between takes, and the checklist in 3.16 first.
+- [ ] **Devpost text:** problem, what it does, how it's built (PayPal Invoicing + Payouts + webhooks, Claude Haiku 5.5, Bryntum Scheduler + Calendar), the guardrail story ("AI reads, code decides, a person approves"), eval numbers, what's next. Tools: PayPal, Anthropic, Bryntum.
+- [ ] **Repo is public and clean:** `git status` clean, `.env` not in git (`git ls-files | grep -c "^.env$"` → `0`), README renders on GitHub.
+- [ ] **Push** (`git push`) and **submit on Devpost**.
 
-- [ ] **Run the end-to-end tests in section 3.** At least every case marked **MUST**. Record results in the [results log](#results-log).
-- [ ] **Fix what the e2e run finds.** Re-run the failed cases after each fix, plus `npm test && make test-int && npm run build`.
-- [ ] **Confirm the three things never tested against real PayPal** (they are e2e cases below):
-  - [ ] PayPal accepts a due-date change on a balance invoice that was already **sent** → case **G14**.
-  - [ ] A retried payout reaches PayPal with `sender_batch_id` = `<payout id>-2` and pays → case **E16**.
-  - [ ] The 3-second refresh does not cancel a slow drag → case **G11**.
-- [ ] **Record the video** (≤ 2:50) following the PRD demo script (section 3.5 is the same flow). Do 2–3 takes; use **Reset demo** between takes.
-- [ ] **Devpost text:** problem, what it does, how it is built (PayPal Invoicing + Payouts + webhooks, Claude Haiku 5.5, Bryntum Scheduler + Calendar), the guardrail story ("AI reads, code decides, a person approves"), eval numbers, what's next. Tools section must list PayPal, Anthropic, Bryntum.
-- [ ] **Repo is public and clean:** `git status` clean, `.env` not in git (`git ls-files | grep -c "^.env$"` → `0`), README renders on GitHub, LICENSE present.
-- [ ] **Push** the final commit (`git push`).
-- [ ] **Submit on Devpost by Nov 11** (one day of buffer).
+### 2.2 Docs (should)
 
-### 2.2 Should do (documentation left over from Phase 3 Task 10)
-
-- [ ] **Phase 3 notes** at the bottom of `docs/superpowers/plans/2026-10-17-phase3-ai-views.md`: eval results (from section 3, case A12/D7), AI latency per document, whether PayPal allows a due-date update on a **sent** invoice (G14), anything the e2e run showed.
-- [ ] **PRD Q7** in `docs/prd.html`: replace "Decided" text with the measured result ("Haiku 5.5: invoices 5/5 caught, 0/5 false holds; contracts 3/3 every field correct").
-- [ ] **PRD Q2 (Bryntum trial for judges):** ask on the PayPal Discord whether trial packages keep working after 45 days; update Q2 with the answer.
-- [ ] **README screenshots** (optional): 2–3 images (Team view, approval queue, agent panel) in `docs/img/`, linked from the README.
+- [ ] **Phase 3 notes** at the bottom of `docs/superpowers/plans/2026-10-17-phase3-ai-views.md`: eval results, AI latency per document, whether PayPal accepted the due-date change on a sent invoice (G14).
+- [ ] **PRD Q7** (`docs/prd.html`): replace "Decided" with the measured result ("Haiku 5.5: invoices 5/5 caught, 0/5 false holds; contracts 3/3 every field correct").
+- [ ] **PRD Q2** (Bryntum trial for judges): ask on the PayPal Discord whether trial packages keep working after 45 days; write the answer in Q2.
+- [ ] **README screenshots** (optional): Team view, approval queue, agent panel in `docs/img/`.
 
 ### 2.3 Optional
 
-- [ ] **Host on Vercel** (Phase 4 Task 8, parked). Only if you want a public URL for judges. Steps are in `docs/superpowers/plans/2026-10-20-phase4-polish.md`, Task 8.
-- [ ] **Clean up the sandbox:** delete test invoices you no longer need in the sandbox business account (e.g. the draft `OT-F415F408-BAL` from Phase 3 testing). Not required.
+- [ ] **Host on Vercel**: steps in [2.5](#25-deploying-to-vercel).
+- [ ] **Payout status backup** (~30 min, test-first). If PayPal times out *and* the webhook is missed, a payout stays "sent" forever and Retry can't help. Add a daily-run step and a button that asks PayPal (`GET /v1/payments/payouts/{batch_id}`) and settles it, like Check payment does for invoices.
+- [ ] **Reuse the PayPal token**: `payPalFromEnv()` (`src/lib/paypal/client.ts:60`) builds a new client per action, so every action fetches a new token. Make it a module-level singleton like `aiFromEnv()`.
+- [ ] **Balance move order**: `approveBalanceMove` updates PayPal first, then the database, with no undo if the database write fails. Very unlikely; a one-line note in the docs is enough.
+- [ ] **Clean up the sandbox**: delete old test invoices (e.g. draft `OT-F415F408-BAL`).
 
-### 2.4 Known small issues (fix only if they bother you in the video)
+### 2.4 Keep in mind
 
-| Issue | Where | Note |
-|---|---|---|
-| After **Propose**, the page doesn't scroll to the agent panel | Team view | The URL ends with `#agent`, but the Bryntum view loads after the jump. Scroll down by hand. |
-| Port 3000 may be taken by another app (Odin) | `npm run dev` | Next then uses **3001**; use whatever URL it prints. The tunnel must point at the same port. |
-| Calendar "Today" circle and Bryntum trial watermark | Calendar | Bryntum's own UI; the watermark is from the trial licence. |
-| Rows in the Team view sort with `Daniel Lim` between `@aina.eats` and `@jasonlifts` | Team view | Postgres ignores the `@` when sorting. Stable, just not "influencers first". |
+- **No login.** Anyone who can reach the app (tunnel URL or Vercel URL) can approve and send sandbox payouts, use your Claude credits, and download contracts and screenshots. Stop the tunnel when not testing; never post the URL publicly.
+- **`PAYPAL_WEBHOOK_DEBUG=0`** when recording: `1` prints payer emails to the console.
+- **Bryntum "Trial Version" watermark** stays: only a paid licence removes it.
+- **Dev server** is pinned to port 3000 (`npm run dev` fails if it's taken). If the Calendar looks unstyled after a CSS change, restart it; if that doesn't help, `rm -rf .next/dev` and restart.
 
-### 2.5 Found by the flow map (2026-10-26)
+### 2.5 Deploying to Vercel
 
-From `~/Downloads/odin-map-on-track.html` (Flags button). Most important first.
+About 45 minutes. The code is ready (`vercel.json` daily cron, GET on the daily-run route, a 1-connection database pool on Vercel). What's left is setup in Neon, Vercel and PayPal. Your local setup keeps working as before.
 
-- [ ] **Payout stuck in `payout_sent` has no backup check.** On a PayPal timeout or 5xx the payout stays `payout_sent` until the webhook arrives (`src/lib/services/payouts.ts:161`). Invoices have a backup (Check payment, `syncSentInvoices` in the daily run); payouts don't. If the webhook is missed (tunnel down), the payout never turns paid or failed, and Retry only accepts `payout_failed`. Fix: a "check payout status" step in the daily run (`GET /v1/payments/payouts/{batch_id}`) plus a button on the approval queue. About 30 min, test-first.
-- [ ] **The tunnel makes the whole app public, with no login.** While `cloudflared` runs, anyone with the URL can open every page, approve and send sandbox payouts (the actor is only a name from a list, `src/lib/form.ts:7`), and download contracts and screenshots by id (`src/app/api/*/[id]/file/route.ts`). Matches the PRD non-goal "no login", but: stop the tunnel when not testing, never share its URL, and consider one line in the README.
-- [ ] **`docs/architecture.html` describes endpoints that don't exist.** It lists `api/invoices/[id]`, `api/payouts/[id]`, `api/agent` and polling "the campaign endpoint". The code uses Server Actions for every write, 4 route handlers (webhook, run-due, 2 file routes), and `router.refresh()` every 3 s. Update the file tree, live-updates row and diagram.
-- [ ] **`docs/architecture.html` says the agent is a tool-use loop (optionally PayPal MCP).** The code (`src/lib/ai/agent.ts:34`) is one structured-output call returning payout ids, with no tools and no MCP. Update the Agent row.
-- [ ] **Balance move updates PayPal before the database, with no undo** (`src/lib/services/balance.ts:37-43`). If PayPal accepts the new due date and the DB transaction then fails, the two disagree. Unlikely locally. Either retry the DB write or note it in the docs.
-- [ ] **PayPal token fetched on every action.** `payPalFromEnv()` (`src/lib/paypal/client.ts:60`) builds a new client per call (8 call sites), so the token cache never gets reused. Make it a module-level singleton like `aiFromEnv()`.
-- [ ] **Commit the Team view range fix** (`timelineRange` in `src/lib/events.ts`, `tickSize={70}` in `TeamSchedulerInner.tsx`), and remove the unused `ActorField` import in `src/app/campaigns/[id]/team/page.tsx:2` (lint warning).
-- [ ] **`PAYPAL_WEBHOOK_DEBUG=1` logs payer details** (`src/app/api/webhooks/paypal/route.ts:26`, up to 1,500 chars of the resource, including emails). Off by default; already in the "Before you record" checklist (3.16).
+**Before you start**
+- The repo is pushed to GitHub (`git push`). Vercel deploys from GitHub.
+- Your local `.env` works: the app runs and the PayPal webhook works through the tunnel.
+- Have your `.env` open; most values are copied from it.
+
+**Step 1: Create the database (Neon, free)**
+1. neon.tech → sign in with GitHub → **Create project** (name `on-track`, region closest to you, e.g. Singapore).
+2. On the project dashboard, **Connection string** → tick **Pooled connection** → copy it. It looks like `postgresql://…-pooler….neon.tech/neondb?sslmode=require`.
+3. From the repo on your laptop, create the tables and the demo data in Neon (the URL on the command line wins over `.env`, so your local database is untouched):
+   ```bash
+   DATABASE_URL='<neon pooled url>' npx drizzle-kit push
+   DATABASE_URL='<neon pooled url>' npm run db:seed
+   ```
+   `db:seed` loads the mid-demo campaign with your sandbox emails from `.env`. Use `npm run db:seed:fresh` or `db:seed:roster` for the other starting points.
+
+**Step 2: Create the Vercel project**
+1. vercel.com → sign in with GitHub → **Add New… → Project** → import `on-track`.
+2. Framework preset: **Next.js** (detected). Leave build and output settings as they are.
+3. Before clicking Deploy, open **Environment Variables** and add these (Production):
+
+   | Name | Value |
+   |---|---|
+   | `DATABASE_URL` | the Neon **pooled** URL from step 1 |
+   | `PAYPAL_CLIENT_ID` | from `.env` |
+   | `PAYPAL_CLIENT_SECRET` | from `.env` |
+   | `PAYPAL_API_BASE` | `https://api-m.sandbox.paypal.com` |
+   | `PAYPAL_WEBHOOK_ID` | leave out for now (step 3) |
+   | `ANTHROPIC_API_KEY` | from `.env` |
+   | `AI_MODEL` | `claude-haiku-5-5` |
+   | `CRON_SECRET` | a **new** long random value: `openssl rand -hex 32` |
+   | `SANDBOX_CLIENT_EMAIL`, `SANDBOX_CREATOR_EMAIL` | from `.env` |
+   | `DEMO_RESET` | `1` only if judges should be able to wipe and reload the demo; otherwise leave out |
+
+4. **Deploy.** Note the URL, e.g. `https://on-track-xxxx.vercel.app`.
+
+**Step 3: Connect the PayPal webhook**
+1. developer.paypal.com → **Apps & Credentials** (Sandbox) → your app → **Webhooks → Add Webhook**.
+2. URL: `https://<your vercel url>/api/webhooks/paypal`.
+3. Events, the same as the tunnel webhook: *Invoicing: Invoice paid* and *Payouts item: succeeded, failed, unclaimed, blocked, denied, returned*.
+4. Save, copy the new **Webhook ID**, and add it in Vercel → Project → Settings → Environment Variables as `PAYPAL_WEBHOOK_ID`.
+5. Vercel → **Deployments** → latest → **⋯ → Redeploy**. Environment variables only apply to new deployments.
+
+Keep the old tunnel webhook too: each URL has its own webhook id, so local and Vercel both work.
+
+**Step 4: Limit the risk**
+- The app has no login: anyone with the URL can approve and send **sandbox** payouts, trigger AI reads on your key, and download uploaded files. Share the URL only with judges.
+- Anthropic console → **Settings → Limits**: set a low monthly spend limit for the key used on Vercel (or create a separate key just for Vercel).
+- Optional: Vercel → Settings → **Deployment Protection**. It blocks strangers, but judges then need access, so check what your plan allows before turning it on.
+
+**Step 5: Check it works**
+1. `curl -s -o /dev/null -w "%{http_code}\n" https://<your vercel url>/api/payouts/run-due` → `401` (the daily run is locked without the secret).
+2. Open the URL → top bar shows **W Wanz**; the seeded campaign opens on the Team view with both tables.
+3. **New campaign** → drop `eval/files/contract-kopi-kita.pdf` → **Read contract with AI** → the review page fills in (10–20 s). Uploads must stay under 4 MB; Vercel rejects requests over 4.5 MB.
+4. Deposit: on a campaign whose deposit isn't paid yet (the one you just created in 3, or seed Neon with `db:seed:fresh`), **Send deposit** → pay it as the sandbox client → within a few seconds the Team view shows *Client deposit received*. That proves the webhook reaches Vercel. If it doesn't, check `PAYPAL_WEBHOOK_ID` and that you redeployed; **Check payment** is the fallback.
+5. Vercel → Project → **Settings → Cron Jobs** → **Run** next to `/api/payouts/run-due` → the function log shows `200` with `{"today":…, "invoicesSettled":…, "results":[…]}`. Careful: this sends any approved payouts that are due.
+
+**If something fails**
+- Build fails on Vercel: run `npm run build` locally first; the same error shows there.
+- A 500 on every page: `DATABASE_URL` is missing or isn't the pooled URL; check the function logs (Deployments → latest → Logs).
+- "Signature check failed" (401) on the webhook: `PAYPAL_WEBHOOK_ID` is the tunnel webhook's id, not the Vercel one.
+- AI errors: same key rules as locally (workspace-scoped key); check the spend limit isn't reached.
+- The cron only runs once a day on the Hobby plan; use **Send now** in the approval queue for anything urgent.
 
 ---
 

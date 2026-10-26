@@ -5,14 +5,15 @@ import { readContract } from "@/lib/ai/contract-reader";
 import { AiReadError } from "@/lib/ai/read-file";
 import { formFromReading } from "@/lib/domain/contract";
 import { checkUpload, CONTRACT_TYPES } from "@/lib/domain/upload";
-import { actorFrom, backTo, fileFrom } from "@/lib/form";
+import { backTo, fileFrom } from "@/lib/form";
+import { currentStaff } from "@/lib/staff";
 import { listRoster, saveContractDraft } from "@/lib/services/contracts";
 
 const HERE = "/campaigns/new";
 
 // R1: read the signed contract into a draft, then send the person to review it.
 export async function uploadContract(form: FormData) {
-  const actor = actorFrom(form);
+  const actor = currentStaff();
   const file = await fileFrom(form, "contract");
   if (!file) backTo(HERE, "Upload the signed contract PDF");
   const fileError = checkUpload(file, CONTRACT_TYPES);

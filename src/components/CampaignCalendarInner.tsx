@@ -12,7 +12,6 @@ import { moveAssignment } from "@/app/campaigns/[id]/view-actions";
 import EventPanel from "./EventPanel";
 import { useAutoRefresh } from "./useAutoRefresh";
 import { useShown } from "./useShown";
-import { getActor } from "./actor-cookie";
 
 export default function CampaignCalendarInner(props: { resources: TimelineResource[]; events: TimelineEvent[]; date: string }) {
   const dragging = useRef(false); // true while a drag is in progress: pauses the refresh
@@ -26,7 +25,7 @@ export default function CampaignCalendarInner(props: { resources: TimelineResour
 
   // The server's dates always win: after any drop, refresh; a refused move snaps back.
   async function save(eventId: string, start: Date) {
-    const r = await moveAssignment(eventId, DateHelper.format(start, "YYYY-MM-DD"), getActor());
+    const r = await moveAssignment(eventId, DateHelper.format(start, "YYYY-MM-DD"));
     setError(r.ok ? null : r.reason);
     router.refresh();
   }
@@ -43,7 +42,8 @@ export default function CampaignCalendarInner(props: { resources: TimelineResour
           <BryntumCalendar
             date={props.date}
             mode="month"
-            modes={{ year: false, agenda: false }}
+            // Two-line chips: names lead with the creator ("@aina.eats · Post · scheduled"), so let them wrap.
+            modes={{ month: { eventHeight: 34 }, year: false, agenda: false }}
             sidebar={null}
             weekStartDay={1}
             resources={props.resources}

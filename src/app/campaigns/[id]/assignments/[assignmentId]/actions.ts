@@ -5,7 +5,8 @@ import { readPost } from "@/lib/ai/post-reader";
 import { AiReadError } from "@/lib/ai/read-file";
 import { agencyToday } from "@/lib/domain/today";
 import { checkUpload, IMAGE_TYPES, INVOICE_TYPES } from "@/lib/domain/upload";
-import { actorFrom, backTo, fileFrom, text } from "@/lib/form";
+import { backTo, fileFrom, text } from "@/lib/form";
+import { currentStaff } from "@/lib/staff";
 import { overrideInvoice, savePostPrecheck, submitInvoice, submitPostCheck } from "@/lib/services/verification";
 import { isUuid } from "@/lib/uuid";
 
@@ -23,7 +24,7 @@ async function postCheck(form: FormData, intent: "verify" | "hold") {
     ticked: form.getAll("ticked").map(String),
     intent,
     note: text(form, "note"),
-    actor: actorFrom(form),
+    actor: currentStaff(),
     today: agencyToday(),
   });
   const done = intent === "verify" ? "Post verified. The payout is waiting for approval." : "Post held. No payout until a new screenshot passes.";
@@ -46,14 +47,14 @@ export async function checkInvoice(form: FormData) {
     paypalEmail: text(form, "paypalEmail"),
     deliverable: text(form, "deliverable"),
     amount: text(form, "amount"),
-    actor: actorFrom(form),
+    actor: currentStaff(),
     today: agencyToday(),
   });
   backTo(pageOf(form), r.ok ? "Invoice checked against the contract." : r.reason);
 }
 
 export async function overrideHeldInvoice(form: FormData) {
-  const r = await overrideInvoice({ assignmentId: text(form, "assignmentId"), reason: text(form, "reason"), actor: actorFrom(form), today: agencyToday() });
+  const r = await overrideInvoice({ assignmentId: text(form, "assignmentId"), reason: text(form, "reason"), actor: currentStaff(), today: agencyToday() });
   backTo(pageOf(form), r.ok ? "Override logged. The payout is waiting for approval." : r.reason);
 }
 
@@ -79,7 +80,7 @@ export async function readInvoiceWithAi(form: FormData) {
     assignmentId: text(form, "assignmentId"),
     file,
     ...checked.fields,
-    actor: actorFrom(form),
+    actor: currentStaff(),
     today: agencyToday(),
     reader: { model: reading.model, confidence: reading.data.confidence },
   });
@@ -101,6 +102,6 @@ export async function precheckPost(form: FormData) {
     console.error("[ai] post pre-check failed", err);
     backTo(here, `${err instanceof AiReadError ? err.message : "The AI couldn't be reached"}. Tick the checklist yourself.`);
   }
-  const r = await savePostPrecheck({ assignmentId: text(form, "assignmentId"), file, link: text(form, "link"), observation: reading.data, model: reading.model, actor: actorFrom(form) });
+  const r = await savePostPrecheck({ assignmentId: text(form, "assignmentId"), file, link: text(form, "link"), observation: reading.data, model: reading.model, actor: currentStaff() });
   backTo(here, r.ok ? "AI pre-check done. Review the suggested ticks, then confirm." : r.reason);
 }

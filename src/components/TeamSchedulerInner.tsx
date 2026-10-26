@@ -12,7 +12,6 @@ import { moveAssignment } from "@/app/campaigns/[id]/view-actions";
 import EventPanel from "./EventPanel";
 import { useAutoRefresh } from "./useAutoRefresh";
 import { useShown } from "./useShown";
-import { getActor } from "./actor-cookie";
 
 export default function TeamSchedulerInner(props: {
   resources: TimelineResource[];
@@ -31,7 +30,7 @@ export default function TeamSchedulerInner(props: {
 
   // The server's dates always win: after any drop, refresh; a refused move snaps back.
   async function save(eventId: string, start: Date) {
-    const r = await moveAssignment(eventId, DateHelper.format(start, "YYYY-MM-DD"), getActor());
+    const r = await moveAssignment(eventId, DateHelper.format(start, "YYYY-MM-DD"));
     setError(r.ok ? null : r.reason);
     router.refresh();
   }
@@ -48,8 +47,9 @@ export default function TeamSchedulerInner(props: {
         {shown && (
           <BryntumScheduler
             autoHeight
-            // Fit the whole date range to the width (the prototype shows 14 days without scrolling).
-            forceFit
+            // About 14 days fit the width (as in the prototype); scroll sideways for the rest of the campaign.
+            // Dragging a chip to the edge scrolls the timeline, so it can reach a later date.
+            tickSize={70}
             resources={props.resources}
             events={props.events}
             startDate={props.startDate}

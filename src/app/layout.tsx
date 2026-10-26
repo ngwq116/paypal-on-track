@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import NavActor from "@/components/NavActor";
+import { currentStaff } from "@/lib/staff";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -18,6 +18,8 @@ export const metadata: Metadata = {
   description: "AI payment desk for marketing agencies",
 };
 
+const initials = (name: string) => name.split(" ").map((w) => w[0]).join("").slice(0, 2);
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
@@ -31,7 +33,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <a href="/" className="font-semibold">On-Track</a>
             <a href="/" className="text-zinc-600 hover:text-zinc-950">Campaigns</a>
             <a href="/approvals" className="text-zinc-600 hover:text-zinc-950">Approvals</a>
-            <NavActor />
+            <span className="ml-auto inline-flex items-center gap-2 text-zinc-600" title="Signed in">
+              <span aria-hidden="true" className="grid size-7 place-items-center rounded-full bg-zinc-900 text-[11px] font-semibold text-white">
+                {initials(currentStaff())}
+              </span>
+              {currentStaff()}
+            </span>
           </nav>
         </header>
         {children}

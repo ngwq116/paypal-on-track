@@ -7,7 +7,7 @@ import { verificationLabel } from "./queries";
 
 const png = { name: "post.png", type: "image/png", size: 3, bytes: Buffer.from([1, 2, 3]) };
 const ALL = ["brandTag", "hashtags", "window"];
-const base = { link: "", note: "", actor: "Mei Tan", today: "2026-10-25" };
+const base = { link: "", note: "", actor: "Wanz", today: "2026-10-25" };
 
 beforeEach(resetDb);
 
@@ -50,7 +50,7 @@ describe("submitPostCheck", () => {
 
 const pdf = { name: "INV-0142.pdf", type: "application/pdf", size: 3, bytes: Buffer.from([1, 2, 3]) };
 const fields = { payee: "Daniel Lim", paypalEmail: "daniel@example.com", deliverable: "2 x 30s product video edits", amount: "1,000.00" };
-const who = { actor: "Mei Tan", today: "2026-10-27" };
+const who = { actor: "Wanz", today: "2026-10-27" };
 
 describe("submitInvoice", () => {
   it("a matching invoice verifies the work and queues the contract fee (R12)", async () => {
@@ -105,7 +105,7 @@ describe("submitInvoice read by AI", () => {
     const [v] = await db.select().from(schema.verifications);
     expect(v).toMatchObject({ source: "ai", task: "invoice_match", pass: true });
     expect(v.checks).toMatchObject({ reader: { model: "claude-haiku-5-5", confidence: 0.92 } });
-    expect(await verificationLabel(assignment.id)).toBe("Invoice matches (AI read) · Mei Tan");
+    expect(await verificationLabel(assignment.id)).toBe("Invoice matches (AI read) · Wanz");
   });
   it("holds an invoice billed in another currency", async () => {
     const { assignment } = await seedAssignment({ type: "freelancer" });
@@ -119,7 +119,7 @@ describe("AI pre-check (R24)", () => {
 
   it("stores suggestions only: nothing is verified and no payout is queued", async () => {
     const { assignment } = await seedAssignment(); // window 2026-10-23 – 2026-10-25
-    expect(await savePostPrecheck({ assignmentId: assignment.id, file: png, link: "", observation, model: "claude-haiku-5-5", actor: "Mei Tan" })).toEqual({ ok: true });
+    expect(await savePostPrecheck({ assignmentId: assignment.id, file: png, link: "", observation, model: "claude-haiku-5-5", actor: "Wanz" })).toEqual({ ok: true });
     expect((await assignmentRow(assignment.id)).status).toBe("scheduled");
     expect(await payoutsFor(assignment.id)).toHaveLength(0);
     const [v] = await db.select().from(schema.verifications);
@@ -129,7 +129,7 @@ describe("AI pre-check (R24)", () => {
 
   it("lets staff confirm with the pre-checked screenshot, without uploading it again", async () => {
     const { assignment } = await seedAssignment();
-    await savePostPrecheck({ assignmentId: assignment.id, file: png, link: "", observation, model: "claude-haiku-5-5", actor: "Mei Tan" });
+    await savePostPrecheck({ assignmentId: assignment.id, file: png, link: "", observation, model: "claude-haiku-5-5", actor: "Wanz" });
     expect(await submitPostCheck({ ...base, assignmentId: assignment.id, file: null, ticked: ALL, intent: "verify" })).toEqual({ ok: true });
     expect(await db.select().from(schema.submissions)).toHaveLength(1);
     expect(await payoutsFor(assignment.id)).toHaveLength(1);

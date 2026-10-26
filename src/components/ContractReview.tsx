@@ -1,7 +1,6 @@
 "use client";
 import { useState, type ChangeEvent } from "react";
 import { confirmContractAction } from "@/app/contracts/[id]/actions";
-import ActorField from "@/components/ActorField";
 import SubmitButton from "@/components/SubmitButton";
 import { buttonVariants } from "@/components/ui/button";
 import { contractTotals, parseContractForm, type ContractForm, type CreatorLine, type RosterCreator } from "@/lib/domain/contract";
@@ -152,7 +151,6 @@ export default function ContractReview({ contractId, initial, roster }: { contra
       )}
 
       <div className="flex flex-wrap items-center justify-end gap-3">
-        <ActorField />
         <SubmitButton pending="Creating…" className={buttonVariants()}>
           Create campaign
         </SubmitButton>

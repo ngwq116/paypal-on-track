@@ -1,6 +1,5 @@
 import { connection } from "next/server";
 import { resetDemo } from "@/app/actions";
-import ActorField from "@/components/ActorField";
 import { buttonVariants } from "@/components/ui/button";
 import { demoResetEnabled } from "@/lib/demo/seed";
 
@@ -20,7 +19,6 @@ export default async function ResetDemoForm() {
         <input type="checkbox" name="confirm" value="yes" required className="size-4 accent-zinc-900" />
         Delete all data and reload the demo
       </label>
-      <ActorField />
       <button className={buttonVariants({ variant: "outline", size: "sm" })}>Reset</button>
     </form>
   );

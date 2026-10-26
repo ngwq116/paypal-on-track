@@ -39,17 +39,17 @@ describe("approveBalanceMove", () => {
   it("only changes our records when the invoice isn't in PayPal yet", async () => {
     const { campaign } = await lateCampaign(null);
     const { pp, request } = fakePayPal();
-    expect(await approveBalanceMove(pp, { campaignId: campaign.id, newDueDate: "2026-11-23", actor: "Mei Tan" })).toEqual({ ok: true });
+    expect(await approveBalanceMove(pp, { campaignId: campaign.id, newDueDate: "2026-11-23", actor: "Wanz" })).toEqual({ ok: true });
     expect(request).not.toHaveBeenCalled();
   });
   it("changes nothing if PayPal refuses, or if the proposal is out of date", async () => {
     const { campaign } = await lateCampaign();
-    expect(await approveBalanceMove(fakePayPal(true).pp, { campaignId: campaign.id, newDueDate: "2026-11-23", actor: "Mei Tan" })).toEqual({
+    expect(await approveBalanceMove(fakePayPal(true).pp, { campaignId: campaign.id, newDueDate: "2026-11-23", actor: "Wanz" })).toEqual({
       ok: false,
       reason: "PayPal refused the new due date (HTTP 422)",
     });
     expect((await db.select().from(schema.clientInvoices))[0].dueDate).toBe("2026-11-20");
-    expect(await approveBalanceMove(fakePayPal().pp, { campaignId: campaign.id, newDueDate: "2026-11-25", actor: "Mei Tan" })).toEqual({
+    expect(await approveBalanceMove(fakePayPal().pp, { campaignId: campaign.id, newDueDate: "2026-11-25", actor: "Wanz" })).toEqual({
       ok: false,
       reason: "This proposal is out of date. Reload the page.",
     });

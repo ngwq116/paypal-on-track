@@ -148,3 +148,14 @@
 .b-scheduler .b-sch-event-content {
   margin-inline: 0;
 }
+
+/* Calendar month chips: wrap to two lines instead of cutting the creator's name off */
+.b-calendar-panel .b-cal-event-wrap .b-cal-event-body,
+.b-calendar-panel .b-cal-event-wrap .b-cal-event-desc {
+  white-space: normal;
+  text-overflow: clip;
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}

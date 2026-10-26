@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import ActorField from "@/components/ActorField";
 import BalanceProposal from "@/components/BalanceProposal";
 import CampaignCalendar from "@/components/CampaignCalendar";
 import CampaignHeader from "@/components/CampaignHeader";

@@ -5,7 +5,8 @@ import { planApprovals } from "@/lib/ai/agent";
 import { AiReadError } from "@/lib/ai/read-file";
 import { writeAudit } from "@/lib/audit";
 import { db } from "@/db";
-import { actorFrom, backTo, text } from "@/lib/form";
+import { backTo, text } from "@/lib/form";
+import { currentStaff } from "@/lib/staff";
 import { listAgentPayouts } from "@/lib/services/agent";
 import { isUuid } from "@/lib/uuid";
 
@@ -13,7 +14,7 @@ import { isUuid } from "@/lib/uuid";
 export async function askAgent(form: FormData) {
   const campaignId = text(form, "campaignId");
   const here = isUuid(campaignId) ? `/campaigns/${campaignId}/team` : "/";
-  const actor = actorFrom(form);
+  const actor = currentStaff();
   const instruction = text(form, "instruction").trim().slice(0, 500);
   if (!instruction) backTo(here, "Type what you want the agent to do");
   const payouts = await listAgentPayouts(campaignId);

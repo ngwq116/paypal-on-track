@@ -17,68 +17,68 @@ beforeEach(resetDb);
 describe("approvePayout", () => {
   it("schedules a verified payout when the deposit has cleared, and logs who approved it", async () => {
     const { payout } = await seedPayout();
-    expect(await approvePayout(payout.id, "Mei Tan")).toEqual({ ok: true });
-    expect(await payoutRow(payout.id)).toMatchObject({ status: "scheduled", approvedBy: "Mei Tan" });
+    expect(await approvePayout(payout.id, "Wanz")).toEqual({ ok: true });
+    expect(await payoutRow(payout.id)).toMatchObject({ status: "scheduled", approvedBy: "Wanz" });
     expect(await actions()).toContain("payout.approved");
   });
   it("refuses while the client deposit has not cleared (R15)", async () => {
     const { payout } = await seedPayout({ depositCleared: false });
-    expect(await approvePayout(payout.id, "Mei Tan")).toEqual({ ok: false, reason: "Client deposit not received" });
+    expect(await approvePayout(payout.id, "Wanz")).toEqual({ ok: false, reason: "Client deposit not received" });
     expect((await payoutRow(payout.id)).status).toBe("awaiting_approval");
   });
   it("refuses work with no passing verification", async () => {
     const { payout } = await seedPayout({ verified: false });
-    expect(await approvePayout(payout.id, "Mei Tan")).toEqual({ ok: false, reason: "Work not verified" });
+    expect(await approvePayout(payout.id, "Wanz")).toEqual({ ok: false, reason: "Work not verified" });
   });
   it("treats a malformed id as not found", async () => {
-    expect(await approvePayout("not-a-uuid", "Mei Tan")).toEqual({ ok: false, reason: "Payout not found" });
+    expect(await approvePayout("not-a-uuid", "Wanz")).toEqual({ ok: false, reason: "Payout not found" });
   });
 });
 
 describe("sendPayout", () => {
   it("sends once, with the payout id as sender_batch_id, and stores the batch id", async () => {
-    const { payout } = await seedPayout({ status: "scheduled", approvedBy: "Mei Tan" });
+    const { payout } = await seedPayout({ status: "scheduled", approvedBy: "Wanz" });
     const { pp, request } = fakePayPal();
-    expect(await sendPayout(pp, payout.id, "Mei Tan")).toEqual({ ok: true });
+    expect(await sendPayout(pp, payout.id, "Wanz")).toEqual({ ok: true });
     expect(request).toHaveBeenCalledTimes(1);
     const body = request.mock.calls[0][2] as { sender_batch_header: { sender_batch_id: string } };
     expect(body.sender_batch_header.sender_batch_id).toBe(payout.id);
     expect(await payoutRow(payout.id)).toMatchObject({ status: "payout_sent", paypalBatchId: "BATCH-1" });
   });
   it("pays only once when Send now is clicked twice at the same moment", async () => {
-    const { payout } = await seedPayout({ status: "scheduled", approvedBy: "Mei Tan" });
+    const { payout } = await seedPayout({ status: "scheduled", approvedBy: "Wanz" });
     const { pp, request } = fakePayPal();
-    const results = await Promise.all([sendPayout(pp, payout.id, "Mei Tan"), sendPayout(pp, payout.id, "Hana Aziz")]);
+    const results = await Promise.all([sendPayout(pp, payout.id, "Wanz"), sendPayout(pp, payout.id, "Hana Aziz")]);
     expect(results.filter((r) => r.ok)).toHaveLength(1);
     expect(results).toContainEqual({ ok: false, reason: "Already sent" });
     expect(request).toHaveBeenCalledTimes(1);
   });
   it("re-checks the guardrail at send time: an approved payout is blocked if the deposit flag is off", async () => {
-    const { payout } = await seedPayout({ status: "scheduled", approvedBy: "Mei Tan", depositCleared: false });
+    const { payout } = await seedPayout({ status: "scheduled", approvedBy: "Wanz", depositCleared: false });
     const { pp, request } = fakePayPal();
-    expect(await sendPayout(pp, payout.id, "Mei Tan")).toEqual({ ok: false, reason: "Client deposit not received" });
+    expect(await sendPayout(pp, payout.id, "Wanz")).toEqual({ ok: false, reason: "Client deposit not received" });
     expect(request).not.toHaveBeenCalled();
   });
   it("refuses a payout nobody approved", async () => {
     const { payout } = await seedPayout();
     const { pp, request } = fakePayPal();
-    expect(await sendPayout(pp, payout.id, "Mei Tan")).toEqual({ ok: false, reason: "Not approved yet" });
+    expect(await sendPayout(pp, payout.id, "Wanz")).toEqual({ ok: false, reason: "Not approved yet" });
     expect(request).not.toHaveBeenCalled();
   });
   it("marks the payout failed with PayPal's error name when PayPal refuses it (4xx)", async () => {
-    const { payout } = await seedPayout({ status: "scheduled", approvedBy: "Mei Tan" });
+    const { payout } = await seedPayout({ status: "scheduled", approvedBy: "Wanz" });
     const { pp } = fakePayPal(async () => {
       throw new PayPalError(422, JSON.stringify({ name: "INSUFFICIENT_FUNDS" }));
     });
-    expect(await sendPayout(pp, payout.id, "Mei Tan")).toEqual({ ok: false, reason: "PayPal refused the payout: INSUFFICIENT_FUNDS" });
+    expect(await sendPayout(pp, payout.id, "Wanz")).toEqual({ ok: false, reason: "PayPal refused the payout: INSUFFICIENT_FUNDS" });
     expect(await payoutRow(payout.id)).toMatchObject({ status: "payout_failed", statusReason: "INSUFFICIENT_FUNDS" });
   });
   it("leaves the payout as sent when PayPal's answer is unknown (5xx); the webhook settles it", async () => {
-    const { payout } = await seedPayout({ status: "scheduled", approvedBy: "Mei Tan" });
+    const { payout } = await seedPayout({ status: "scheduled", approvedBy: "Wanz" });
     const { pp } = fakePayPal(async () => {
       throw new PayPalError(503, "{}");
     });
-    const r = await sendPayout(pp, payout.id, "Mei Tan");
+    const r = await sendPayout(pp, payout.id, "Wanz");
     expect(r.ok).toBe(false);
     expect((await payoutRow(payout.id)).status).toBe("payout_sent");
     expect(await actions()).toContain("payout.unconfirmed");
@@ -87,7 +87,7 @@ describe("sendPayout", () => {
 
 describe("editPayout", () => {
   it("lowering a scheduled payout sends it back for approval and logs before and after", async () => {
-    const { payout } = await seedPayout({ status: "scheduled", approvedBy: "Mei Tan" });
+    const { payout } = await seedPayout({ status: "scheduled", approvedBy: "Wanz" });
     const r = await editPayout({ payoutId: payout.id, amountCents: 100000, date: "2026-10-30", reason: "Agreed discount", actor: "Hana Aziz", today: "2026-10-27" });
     expect(r).toEqual({ ok: true });
     expect(await payoutRow(payout.id)).toMatchObject({ status: "awaiting_approval", approvedBy: null, amountCents: 100000, scheduledFor: "2026-10-30" });
@@ -96,7 +96,7 @@ describe("editPayout", () => {
   });
   it("rejects raising the amount above the contract fee", async () => {
     const { payout } = await seedPayout();
-    expect(await editPayout({ payoutId: payout.id, amountCents: 120001, date: "2026-10-30", reason: "x", actor: "Mei Tan", today: "2026-10-27" })).toEqual({
+    expect(await editPayout({ payoutId: payout.id, amountCents: 120001, date: "2026-10-30", reason: "x", actor: "Wanz", today: "2026-10-27" })).toEqual({
       ok: false,
       errors: ["Amount is above the contract fee"],
     });
@@ -106,20 +106,20 @@ describe("editPayout", () => {
 describe("rejectPayout", () => {
   it("holds the payout and its assignment, with the reason", async () => {
     const { payout, assignment } = await seedPayout();
-    expect(await rejectPayout(payout.id, "Mei Tan", "Wrong product shown")).toEqual({ ok: true });
+    expect(await rejectPayout(payout.id, "Wanz", "Wrong product shown")).toEqual({ ok: true });
     expect(await payoutRow(payout.id)).toMatchObject({ status: "held", statusReason: "Wrong product shown" });
     const [a] = await db.select().from(schema.assignments).where(eq(schema.assignments.id, assignment.id));
     expect(a.status).toBe("held");
   });
   it("needs a reason", async () => {
     const { payout } = await seedPayout();
-    expect(await rejectPayout(payout.id, "Mei Tan", "  ")).toEqual({ ok: false, reason: "A reason is required" });
+    expect(await rejectPayout(payout.id, "Wanz", "  ")).toEqual({ ok: false, reason: "A reason is required" });
   });
 });
 
 describe("runDuePayouts", () => {
   it("sends approved payouts whose date has arrived, and nothing else", async () => {
-    const due = await seedPayout({ status: "scheduled", approvedBy: "Mei Tan" }); // scheduled for 2026-10-29
+    const due = await seedPayout({ status: "scheduled", approvedBy: "Wanz" }); // scheduled for 2026-10-29
     await seedPayout(); // awaiting approval: never sent automatically
     const { pp, request } = fakePayPal();
     expect(await runDuePayouts(pp, "2026-10-28")).toEqual([]);
@@ -130,21 +130,21 @@ describe("runDuePayouts", () => {
 
 describe("retryPayout", () => {
   it("sends a failed payout back for approval as the next attempt", async () => {
-    const { payout } = await seedPayout({ status: "payout_failed", approvedBy: "Mei Tan", paypalBatchId: "OLD" });
+    const { payout } = await seedPayout({ status: "payout_failed", approvedBy: "Wanz", paypalBatchId: "OLD" });
     expect(await retryPayout(payout.id, "Hana Aziz")).toEqual({ ok: true });
     expect(await payoutRow(payout.id)).toMatchObject({ status: "awaiting_approval", attempt: 2, approvedBy: null, paypalBatchId: null, statusReason: null });
     expect(await actions()).toContain("payout.retry_queued");
   });
   it("only retries a failed payout", async () => {
-    const { payout } = await seedPayout({ status: "scheduled", approvedBy: "Mei Tan" });
-    expect(await retryPayout(payout.id, "Mei Tan")).toEqual({ ok: false, reason: "Only a failed payout can be retried" });
+    const { payout } = await seedPayout({ status: "scheduled", approvedBy: "Wanz" });
+    expect(await retryPayout(payout.id, "Wanz")).toEqual({ ok: false, reason: "Only a failed payout can be retried" });
   });
   it("sends attempt 2 with a new sender_batch_id", async () => {
-    const { payout } = await seedPayout({ status: "payout_failed", approvedBy: "Mei Tan" });
-    await retryPayout(payout.id, "Mei Tan");
-    await approvePayout(payout.id, "Mei Tan");
+    const { payout } = await seedPayout({ status: "payout_failed", approvedBy: "Wanz" });
+    await retryPayout(payout.id, "Wanz");
+    await approvePayout(payout.id, "Wanz");
     const { pp, request } = fakePayPal();
-    expect(await sendPayout(pp, payout.id, "Mei Tan")).toEqual({ ok: true });
+    expect(await sendPayout(pp, payout.id, "Wanz")).toEqual({ ok: true });
     const body = request.mock.calls[0][2] as { sender_batch_header: { sender_batch_id: string } };
     expect(body.sender_batch_header.sender_batch_id).toBe(`${payout.id}-2`);
   });

@@ -27,24 +27,24 @@ describe("handlePayPalEvent", () => {
     expect(await db.select().from(schema.auditEvents)).toHaveLength(1);
   });
   it("payout succeeded: payout and assignment are paid (matched by sender_item_id)", async () => {
-    const { payout, assignment } = await seedPayout({ status: "payout_sent", approvedBy: "Mei Tan" });
+    const { payout, assignment } = await seedPayout({ status: "payout_sent", approvedBy: "Wanz" });
     await handlePayPalEvent({ id: "WH-2", event_type: "PAYMENT.PAYOUTS-ITEM.SUCCEEDED", resource: { payout_batch_id: "B", payout_item: { sender_item_id: payout.id } } });
     expect((await payoutRow(payout.id)).status).toBe("paid");
     const [a] = await db.select().from(schema.assignments).where(eq(schema.assignments.id, assignment.id));
     expect(a.status).toBe("paid");
   });
   it("matches by batch id when the item id is missing", async () => {
-    const { payout } = await seedPayout({ status: "payout_sent", approvedBy: "Mei Tan", paypalBatchId: "BATCH-9" });
+    const { payout } = await seedPayout({ status: "payout_sent", approvedBy: "Wanz", paypalBatchId: "BATCH-9" });
     expect(await handlePayPalEvent({ id: "WH-3", event_type: "PAYMENT.PAYOUTS-ITEM.SUCCEEDED", resource: { payout_batch_id: "BATCH-9" } })).toBe("processed");
     expect((await payoutRow(payout.id)).status).toBe("paid");
   });
   it("a late FAILED event does not undo a paid payout", async () => {
-    const { payout } = await seedPayout({ status: "paid", approvedBy: "Mei Tan" });
+    const { payout } = await seedPayout({ status: "paid", approvedBy: "Wanz" });
     await handlePayPalEvent({ id: "WH-4", event_type: "PAYMENT.PAYOUTS-ITEM.FAILED", resource: { payout_item: { sender_item_id: payout.id } } });
     expect((await payoutRow(payout.id)).status).toBe("paid");
   });
   it("payout unclaimed: failed with the PayPal status as the reason", async () => {
-    const { payout } = await seedPayout({ status: "payout_sent", approvedBy: "Mei Tan" });
+    const { payout } = await seedPayout({ status: "payout_sent", approvedBy: "Wanz" });
     await handlePayPalEvent({ id: "WH-5", event_type: "PAYMENT.PAYOUTS-ITEM.UNCLAIMED", resource: { payout_item: { sender_item_id: payout.id } } });
     expect(await payoutRow(payout.id)).toMatchObject({ status: "payout_failed", statusReason: "UNCLAIMED" });
   });
@@ -61,7 +61,7 @@ describe("stale events from an earlier attempt", () => {
     expect((await payoutRow(payout.id)).status).toBe("awaiting_approval");
   });
   it("are ignored when they name a different batch than the one sent", async () => {
-    const { payout } = await seedPayout({ status: "payout_sent", approvedBy: "Mei Tan", paypalBatchId: "NEW" });
+    const { payout } = await seedPayout({ status: "payout_sent", approvedBy: "Wanz", paypalBatchId: "NEW" });
     expect(await handlePayPalEvent({ id: "WH-8", event_type: "PAYMENT.PAYOUTS-ITEM.SUCCEEDED", resource: { payout_batch_id: "OLD", payout_item: { sender_item_id: payout.id } } })).toBe("ignored");
     expect((await payoutRow(payout.id)).status).toBe("payout_sent");
   });

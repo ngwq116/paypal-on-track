@@ -30,7 +30,7 @@ describe("sendDepositInvoice", () => {
   it("creates, sends and stores the payer link; due date never in the past", async () => {
     const { campaign } = await withInvoices();
     const { pp, request } = fakePayPal();
-    expect(await sendDepositInvoice(pp, campaign.id, "Mei Tan", "2026-10-21")).toEqual({ ok: true });
+    expect(await sendDepositInvoice(pp, campaign.id, "Wanz", "2026-10-21")).toEqual({ ok: true });
     const create = request.mock.calls.find((c) => c[1] === "/v2/invoicing/invoices")!;
     expect(create[2]).toMatchObject({ detail: { payment_term: { due_date: "2026-10-21" } } });
     expect(request.mock.calls.some((c) => c[1] === "/v2/invoicing/invoices/INV2-NEW/send")).toBe(true);
@@ -39,14 +39,14 @@ describe("sendDepositInvoice", () => {
   it("won't send twice", async () => {
     const { campaign } = await withInvoices("sent");
     const { pp, request } = fakePayPal();
-    expect(await sendDepositInvoice(pp, campaign.id, "Mei Tan", "2026-10-21")).toEqual({ ok: false, reason: "The deposit invoice was already sent" });
+    expect(await sendDepositInvoice(pp, campaign.id, "Wanz", "2026-10-21")).toEqual({ ok: false, reason: "The deposit invoice was already sent" });
     expect(request).not.toHaveBeenCalled();
   });
   it("reuses an invoice PayPal already created if the send failed last time", async () => {
     const { campaign } = await withInvoices();
     await db.update(schema.clientInvoices).set({ paypalInvoiceId: "INV2-OLD" }).where(eq(schema.clientInvoices.kind, "deposit"));
     const { pp, request } = fakePayPal();
-    expect(await sendDepositInvoice(pp, campaign.id, "Mei Tan", "2026-10-21")).toEqual({ ok: true });
+    expect(await sendDepositInvoice(pp, campaign.id, "Wanz", "2026-10-21")).toEqual({ ok: true });
     expect(request.mock.calls.some((c) => c[1] === "/v2/invoicing/invoices")).toBe(false);
     expect(request.mock.calls.some((c) => c[1] === "/v2/invoicing/invoices/INV2-OLD/send")).toBe(true);
   });
@@ -56,7 +56,7 @@ describe("createBalanceDraft", () => {
   it("creates the balance invoice in PayPal as a draft and does not send it (R5)", async () => {
     const { campaign } = await withInvoices();
     const { pp, request } = fakePayPal();
-    expect(await createBalanceDraft(pp, campaign.id, "Mei Tan", "2026-10-21")).toEqual({ ok: true });
+    expect(await createBalanceDraft(pp, campaign.id, "Wanz", "2026-10-21")).toEqual({ ok: true });
     expect(request.mock.calls.some((c) => String(c[1]).endsWith("/send"))).toBe(false);
     expect(await invoice("balance")).toMatchObject({ status: "draft", paypalInvoiceId: "INV2-NEW" });
   });
@@ -77,31 +77,31 @@ describe("checkInvoicePayment", () => {
   it("marks the deposit paid and unlocks payouts when PayPal says PAID", async () => {
     const { campaign } = await sentDeposit();
     const { pp, request } = statusPayPal("PAID");
-    expect(await checkInvoicePayment(pp, campaign.id, "deposit", "Mei Tan")).toEqual({ ok: true, paid: true });
+    expect(await checkInvoicePayment(pp, campaign.id, "deposit", "Wanz")).toEqual({ ok: true, paid: true });
     expect(request).toHaveBeenCalledWith("GET", "/v2/invoicing/invoices/INV2-SENT");
     expect((await invoice("deposit")).status).toBe("paid");
     const [c] = await db.select().from(schema.campaigns).where(eq(schema.campaigns.id, campaign.id));
     expect(c.depositCleared).toBe(true);
     const audits = await db.select().from(schema.auditEvents);
     expect(audits).toHaveLength(1);
-    expect(audits[0]).toMatchObject({ actor: "paypal", action: "invoice.paid", detail: { via: "status check", checkedBy: "Mei Tan" } });
+    expect(audits[0]).toMatchObject({ actor: "paypal", action: "invoice.paid", detail: { via: "status check", checkedBy: "Wanz" } });
   });
   it("changes nothing while PayPal still shows it unpaid", async () => {
     const { campaign } = await sentDeposit();
-    expect(await checkInvoicePayment(statusPayPal("SENT").pp, campaign.id, "deposit", "Mei Tan")).toEqual({ ok: true, paid: false });
+    expect(await checkInvoicePayment(statusPayPal("SENT").pp, campaign.id, "deposit", "Wanz")).toEqual({ ok: true, paid: false });
     expect((await invoice("deposit")).status).toBe("sent");
   });
   it("does not ask PayPal about an invoice that was never sent", async () => {
     const { campaign } = await withInvoices();
     const { pp, request } = statusPayPal("PAID");
-    expect(await checkInvoicePayment(pp, campaign.id, "deposit", "Mei Tan")).toEqual({ ok: false, reason: "The deposit invoice hasn't been sent" });
+    expect(await checkInvoicePayment(pp, campaign.id, "deposit", "Wanz")).toEqual({ ok: false, reason: "The deposit invoice hasn't been sent" });
     expect(request).not.toHaveBeenCalled();
   });
   it("is harmless after the webhook already marked it paid (no second audit entry)", async () => {
     const { campaign } = await sentDeposit();
     await db.update(schema.clientInvoices).set({ status: "paid" }).where(eq(schema.clientInvoices.kind, "deposit"));
     const { pp, request } = statusPayPal("PAID");
-    expect(await checkInvoicePayment(pp, campaign.id, "deposit", "Mei Tan")).toEqual({ ok: true, paid: true });
+    expect(await checkInvoicePayment(pp, campaign.id, "deposit", "Wanz")).toEqual({ ok: true, paid: true });
     expect(request).not.toHaveBeenCalled();
     expect(await db.select().from(schema.auditEvents)).toHaveLength(0);
   });

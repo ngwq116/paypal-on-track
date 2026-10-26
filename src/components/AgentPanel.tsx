@@ -1,6 +1,5 @@
 import { askAgent } from "@/app/campaigns/[id]/agent-actions";
 import { approveSelected } from "@/app/approvals/actions";
-import ActorField from "@/components/ActorField";
 import SubmitButton from "@/components/SubmitButton";
 import { buttonVariants } from "@/components/ui/button";
 import { formatUsd } from "@/lib/domain/money";
@@ -13,7 +12,6 @@ export default async function AgentPanel({ campaignId, plan, summary }: { campai
     <section id="agent" aria-label="Agent" className="flex flex-col gap-3 rounded-[10px] border border-zinc-200 p-4">
       <form action={askAgent} className="flex flex-wrap items-center gap-3">
         <input type="hidden" name="campaignId" value={campaignId} />
-        <ActorField />
         <label className="flex min-w-[260px] flex-1 flex-col gap-1 text-sm font-medium">
           Ask the agent
           <input name="instruction" maxLength={500} required placeholder="e.g. Approve every creator with a verified post" className="min-h-10 rounded-md border border-zinc-200 px-3 text-sm font-normal" />
@@ -24,7 +22,6 @@ export default async function AgentPanel({ campaignId, plan, summary }: { campai
 
       {rows && (
         <form action={approveSelected} className="flex flex-col gap-3">
-          <ActorField />
           {summary && <p className="text-sm text-zinc-700">{summary}</p>}
           {rows.length === 0 ? (
             <p className="text-sm text-zinc-500">The agent proposed nothing for that instruction.</p>

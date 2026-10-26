@@ -14,7 +14,7 @@ export interface TimelineInput {
     dueDate: string;
     status: "scheduled" | "submitted" | "verified" | "held" | "paid";
     feeCents: number;
-    verified: string; // e.g. "Post checklist · Mei Tan" or "Not verified"
+    verified: string; // e.g. "Post checklist · Wanz" or "Not verified"
   }>;
   invoices: Array<{ id: string; kind: "deposit" | "balance"; amountCents: number; dueDate: string; status: "draft" | "sent" | "paid"; paypalInvoiceId: string | null }>;
   payouts: Array<{
@@ -59,6 +59,17 @@ export function addDays(day: string, n: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+// Team view range: the whole campaign (and any event past its end), at least two weeks,
+// plus two weeks of room so an item can be dragged past the campaign end (R19).
+export function timelineRange(
+  campaign: { startDate: string; endDate: string },
+  events: { endDate: string }[],
+): { startDate: string; endDate: string } {
+  let last = addDays(campaign.startDate, 14);
+  for (const d of [campaign.endDate, ...events.map((e) => e.endDate)]) if (d > last) last = d;
+  return { startDate: campaign.startDate, endDate: addDays(last, 14) };
+}
+
 const usd = (cents: number) => "$" + (cents / 100).toLocaleString("en-US", { maximumFractionDigits: 2 });
 
 // [label, short label, colour]
@@ -94,7 +105,7 @@ export function toTimeline(input: TimelineInput): { resources: TimelineResource[
       id: `assignment-${a.id}`,
       refId: a.id,
       resourceId: a.creatorId,
-      name: `${what} · ${overdue ? "overdue" : a.status}`,
+      name: `${a.creatorName} · ${what} · ${overdue ? "overdue" : a.status}`, // the Calendar has no rows, so the name says who
       shortName: overdue ? "Overdue" : capitalize(a.status),
       ...day(a.dueDate),
       eventColor: overdue || a.status === "held" ? "red" : kind === "post" ? "violet" : "orange",
@@ -145,7 +156,7 @@ export function toTimeline(input: TimelineInput): { resources: TimelineResource[
       id: `payout-${p.id}`,
       refId: p.id,
       resourceId: a?.creatorId ?? "client",
-      name: `${label} ${usd(p.amountCents)}`,
+      name: `${a ? `${a.creatorName} · ` : ""}${label} ${usd(p.amountCents)}`,
       shortName: `${short} ${usd(p.amountCents)}`,
       ...day(p.scheduledFor),
       eventColor: color,

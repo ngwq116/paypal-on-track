@@ -64,13 +64,13 @@ export async function seedDemo(mode: SeedMode, emails: { creator: string; client
   if (!fresh) {
     const proofs = await db
       .insert(schema.submissions)
-      .values([aAina, aJason].map((a) => ({ assignmentId: a.id, kind: "post_proof" as const, fileName: "seed-placeholder.png", fileType: "image/png", file: PLACEHOLDER_PNG, submittedBy: "Mei Tan" })))
+      .values([aAina, aJason].map((a) => ({ assignmentId: a.id, kind: "post_proof" as const, fileName: "seed-placeholder.png", fileType: "image/png", file: PLACEHOLDER_PNG, submittedBy: "Wanz" })))
       .returning();
     await db.insert(schema.verifications).values(
-      proofs.map((s) => ({ submissionId: s.id, source: "user" as const, task: "post_checklist" as const, pass: true, checks: { ticked: ["brandTag", "hashtags", "window"], missing: [] }, createdBy: "Mei Tan" })),
+      proofs.map((s) => ({ submissionId: s.id, source: "user" as const, task: "post_checklist" as const, pass: true, checks: { ticked: ["brandTag", "hashtags", "window"], missing: [] }, createdBy: "Wanz" })),
     );
     await db.insert(schema.payouts).values([
-      { assignmentId: aAina.id, amountCents: 150000, scheduledFor: "2026-11-20", approvedBy: "Mei Tan", approvedAt: new Date("2026-11-19T09:00:00+08:00"), status: "paid" },
+      { assignmentId: aAina.id, amountCents: 150000, scheduledFor: "2026-11-20", approvedBy: "Wanz", approvedAt: new Date("2026-11-19T09:00:00+08:00"), status: "paid" },
       { assignmentId: aJason.id, amountCents: 120000, scheduledFor: "2026-11-26", status: "awaiting_approval" },
     ]);
   }

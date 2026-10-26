@@ -1,5 +1,4 @@
 import { approveBalanceMoveAction } from "@/app/campaigns/[id]/actions";
-import ActorField from "@/components/ActorField";
 import { buttonVariants } from "@/components/ui/button";
 import { formatDay } from "@/lib/domain/format";
 import { formatUsd } from "@/lib/domain/money";
@@ -19,7 +18,6 @@ export default async function BalanceProposal({ campaignId, view }: { campaignId
         {formatDay(balance.dueDate)} to {formatDay(proposal.newDueDate)}
         {balance.paypalInvoiceId ? " (updates the PayPal invoice)" : ""}.
       </span>
-      <ActorField />
       <button className={buttonVariants({ size: "sm" })}>Approve new due date</button>
     </form>
   );

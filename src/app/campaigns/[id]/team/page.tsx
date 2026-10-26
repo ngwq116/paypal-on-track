@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import ActorField from "@/components/ActorField";
 import { notFound } from "next/navigation";
 import AgentPanel from "@/components/AgentPanel";
 import AssignmentsTable from "@/components/AssignmentsTable";
@@ -9,7 +8,7 @@ import CampaignSummary from "@/components/CampaignSummary";
 import DepositPanel from "@/components/DepositPanel";
 import Notice from "@/components/Notice";
 import TeamScheduler from "@/components/TeamScheduler";
-import { addDays } from "@/lib/events";
+import { timelineRange } from "@/lib/events";
 import { loadTimeline } from "@/lib/load-timeline";
 
 type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ notice?: string; plan?: string; summary?: string }> };
@@ -41,8 +40,7 @@ async function TeamContent({ params, searchParams }: Props) {
       <TeamScheduler
         resources={data.resources}
         events={data.events}
-        startDate={data.campaign.startDate}
-        endDate={addDays(data.campaign.startDate, 14)}
+        {...timelineRange(data.campaign, data.events)}
       />
       <AssignmentsTable campaignId={id} />
       <AgentPanel campaignId={id} plan={plan} summary={summary} />

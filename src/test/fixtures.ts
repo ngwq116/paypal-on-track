@@ -48,9 +48,9 @@ export async function seedPayout(
   if (opts.verified ?? true) {
     const [s] = await db
       .insert(schema.submissions)
-      .values({ assignmentId: base.assignment.id, kind: "post_proof", fileName: "p.png", fileType: "image/png", file: Buffer.from([1]), submittedBy: "Mei Tan" })
+      .values({ assignmentId: base.assignment.id, kind: "post_proof", fileName: "p.png", fileType: "image/png", file: Buffer.from([1]), submittedBy: "Wanz" })
       .returning();
-    await db.insert(schema.verifications).values({ submissionId: s.id, source: "user", task: "post_checklist", pass: true, createdBy: "Mei Tan" });
+    await db.insert(schema.verifications).values({ submissionId: s.id, source: "user", task: "post_checklist", pass: true, createdBy: "Wanz" });
   }
   const [payout] = await db
     .insert(schema.payouts)

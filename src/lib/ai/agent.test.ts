@@ -3,7 +3,7 @@ import type { AiClient } from "./client";
 import { planApprovals, type AgentPayoutView } from "./agent";
 
 const payouts: AgentPayoutView[] = [
-  { payoutId: "p1", payee: "@jasonlifts", deliverable: "1 TikTok video", amount: "$1,200.00", status: "awaiting_approval", verified: "Post checklist · Mei Tan", depositCleared: true },
+  { payoutId: "p1", payee: "@jasonlifts", deliverable: "1 TikTok video", amount: "$1,200.00", status: "awaiting_approval", verified: "Post checklist · Wanz", depositCleared: true },
   { payoutId: "p2", payee: "Daniel Lim", deliverable: "2 × 30s product video edits", amount: "$1,000.00", status: "awaiting_approval", verified: "Not verified", depositCleared: true },
 ];
 const ai = (reply: unknown) => {

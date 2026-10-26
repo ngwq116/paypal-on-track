@@ -21,3 +21,6 @@ export async function POST(req: Request) {
   const invoicesSettled = await syncSentInvoices(pp);
   return NextResponse.json({ today, invoicesSettled, results: await runDuePayouts(pp, today) });
 }
+
+// Vercel Cron calls with GET and sends the same "Authorization: Bearer <CRON_SECRET>" header.
+export const GET = POST;

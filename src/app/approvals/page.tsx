@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import ActorField from "@/components/ActorField";
+import { Check, Pencil, RotateCcw, Send } from "lucide-react";
 import Notice from "@/components/Notice";
 import { buttonVariants } from "@/components/ui/button";
 import { formatDay } from "@/lib/domain/format";
@@ -25,107 +25,141 @@ export default function ApprovalsPage({ searchParams }: { searchParams: SearchPa
   );
 }
 
-const cell = "px-3 py-3 align-middle";
+type Row = Awaited<ReturnType<typeof listApprovalRows>>[number];
+type Kind = "influencer" | "freelancer";
+
+const th = "px-3 py-2.5 font-medium";
+const td = "px-3 py-3 align-middle";
 
 async function Queue({ searchParams }: { searchParams: SearchParams }) {
   const { notice } = await searchParams;
   const rows = await listApprovalRows();
   return (
-    // One form: checkboxes feed the batch button; each row's button is bound to its own payout id.
-    <form className="flex flex-col gap-4">
+    <div className="flex flex-col gap-8">
       <Notice text={notice} />
-      <div className="flex flex-wrap items-center justify-end gap-3">
-        <ActorField />
-        <button formAction={approveSelected} className={buttonVariants({ variant: "default" })}>
-          Approve &amp; schedule selected
+      <KindQueue kind="influencer" rows={rows.filter((r) => r.creator.type === "influencer")} />
+      <KindQueue kind="freelancer" rows={rows.filter((r) => r.creator.type === "freelancer")} />
+      <p className="text-xs text-zinc-500">Edits can lower an amount or move a date, never raise it above the contract. Editing an approved payout sends it back for approval.</p>
+    </div>
+  );
+}
+
+const approvable = (r: Row) => r.payout.status === "awaiting_approval" && r.campaign.depositCleared;
+
+// One form per table: its checkboxes feed its batch button; each row's buttons are bound to their own payout id.
+function KindQueue({ kind, rows }: { kind: Kind; rows: Row[] }) {
+  const influencer = kind === "influencer";
+  const toApprove = rows.filter(approvable).length;
+  const id = `${kind}-payouts`;
+  return (
+    <form aria-labelledby={id} className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 id={id} className="flex items-center gap-2.5 text-lg font-semibold">
+          <span aria-hidden="true" className={`size-2.5 rounded-[3px] ${influencer ? "bg-violet-300" : "bg-orange-300"}`} />
+          {influencer ? "Influencer payouts" : "Freelancer payouts"}
+          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[13px] font-medium text-zinc-600">
+            {toApprove ? `${toApprove} to approve` : `${rows.length} in queue`}
+          </span>
+        </h2>
+        <button formAction={approveSelected} disabled={!toApprove} className={buttonVariants({ size: "lg" })}>
+          <Check aria-hidden="true" />
+          Approve selected
         </button>
       </div>
-      <div className="overflow-x-auto rounded-[10px] border border-zinc-200">
-        <table className="w-full min-w-[960px] text-sm">
-          <thead className="bg-zinc-50 text-left text-xs font-medium text-zinc-500">
+      <div className="overflow-x-auto rounded-xl border border-zinc-200">
+        <table className="w-full min-w-[900px] text-sm">
+          <thead className="bg-zinc-50 text-left text-xs text-zinc-600">
             <tr>
-              <th className={cell}><span className="sr-only">Select</span></th>
-              <th className={cell}>Payee</th>
-              <th className={cell}>Campaign</th>
-              <th className={cell}>Amount</th>
-              <th className={cell}>Contract fee</th>
-              <th className={cell}>Verified</th>
-              <th className={cell}>Client deposit</th>
-              <th className={cell}>Payout date</th>
-              <th className={cell}>Action</th>
+              <th className={`${th} w-8 pl-4`}><span className="sr-only">Select</span></th>
+              <th className={th}>{influencer ? "Influencer" : "Freelancer"}</th>
+              <th className={`${th} text-right`}>Amount</th>
+              <th className={th}>{influencer ? "Post check" : "Invoice check"}</th>
+              <th className={th}>Client deposit</th>
+              <th className={th}>Payout date</th>
+              <th className={`${th} pr-4 text-right`}>Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
             {rows.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-3 py-8 text-center text-zinc-500">Nothing to approve.</td>
+                <td colSpan={7} className="px-4 py-6 text-center text-zinc-500">Nothing here.</td>
               </tr>
             )}
-            {rows.map(({ payout, assignment, creator, campaign, verified }) => {
-              const awaiting = payout.status === "awaiting_approval";
-              const locked = awaiting && !campaign.depositCleared;
-              return (
-                <tr key={payout.id}>
-                  <td className={cell}>
-                    {awaiting && !locked && (
-                      <input type="checkbox" name="ids" value={payout.id} aria-label={`Select ${creator.name}`} className="size-4 accent-zinc-900" />
-                    )}
-                  </td>
-                  <td className={cell}>
-                    <div className="font-medium">{creator.name}</div>
-                    <div className="text-xs text-zinc-500">{creator.type === "influencer" ? "Influencer" : "Freelancer"} · {creator.detail}</div>
-                  </td>
-                  <td className={cell}>{campaign.name}</td>
-                  <td className={`${cell} tabular-nums font-medium`}>{formatUsd(payout.amountCents)}</td>
-                  <td className={`${cell} tabular-nums text-zinc-500`}>{formatUsd(assignment.feeCents)}</td>
-                  <td className={cell}>{verified}</td>
-                  <td className={cell}>
-                    <span
-                      className={
-                        "rounded-full border px-2 py-0.5 text-xs font-medium " +
-                        (campaign.depositCleared ? "border-green-200 bg-green-50 text-green-900" : "border-amber-200 bg-amber-50 text-amber-900")
-                      }
-                    >
-                      {campaign.depositCleared ? "Received" : "Not received"}
-                    </span>
-                  </td>
-                  <td className={`${cell} tabular-nums`}>{formatDay(payout.scheduledFor)}</td>
-                  <td className={cell}>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {awaiting && !locked && (
-                        <button formAction={approveOne.bind(null, payout.id)} className={buttonVariants({ size: "sm" })}>
-                          Approve
-                        </button>
-                      )}
-                      {locked && <span className="text-xs text-amber-900">Locked until the deposit clears</span>}
-                      {payout.status === "scheduled" && (
-                        <button formAction={sendNow.bind(null, payout.id)} className={buttonVariants({ size: "sm", variant: "outline" })}>
-                          Send now
-                        </button>
-                      )}
-                      {payout.status === "payout_sent" && <span className="text-xs text-zinc-500">Sent via PayPal</span>}
-                      {payout.status === "payout_failed" && (
-                        <>
-                          <span className="text-xs font-medium text-red-700">Failed · {payout.statusReason}</span>
-                          <button formAction={retryFailed.bind(null, payout.id)} className={buttonVariants({ size: "sm", variant: "outline" })}>
-                            Retry
-                          </button>
-                        </>
-                      )}
-                      {(awaiting || payout.status === "scheduled") && (
-                        <a href={`/approvals/${payout.id}`} className="text-xs text-zinc-600 underline-offset-4 hover:underline">
-                          Edit or reject
-                        </a>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
+            {rows.map((r) => (
+              <QueueRow key={r.payout.id} row={r} />
+            ))}
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-zinc-500">Edits can lower an amount or move a date, never raise it above the contract. Editing an approved payout sends it back for approval.</p>
     </form>
+  );
+}
+
+function QueueRow({ row: { payout, assignment, creator, campaign, verified } }: { row: Row }) {
+  const awaiting = payout.status === "awaiting_approval";
+  const locked = awaiting && !campaign.depositCleared;
+  const editable = awaiting || payout.status === "scheduled";
+  return (
+    <tr className={awaiting && !locked ? "bg-amber-50/60" : ""}>
+      <td className={`${td} pl-4`}>
+        {awaiting && !locked && (
+          <input type="checkbox" name="ids" value={payout.id} aria-label={`Select ${creator.name}`} className="size-[18px] accent-zinc-900" />
+        )}
+      </td>
+      <td className={td}>
+        <div className="font-medium">{creator.name}</div>
+        <div className="text-xs text-zinc-600">{campaign.name} · {creator.detail}</div>
+      </td>
+      <td className={`${td} text-right tabular-nums`}>
+        <div className="font-semibold">{formatUsd(payout.amountCents)}</div>
+        <div className="text-xs text-zinc-600">fee {formatUsd(assignment.feeCents)}</div>
+      </td>
+      <td className={`${td} text-zinc-700`}>{verified}</td>
+      <td className={td}>
+        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${campaign.depositCleared ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-900"}`}>
+          {campaign.depositCleared ? "Received" : "Not received"}
+        </span>
+      </td>
+      <td className={`${td} tabular-nums`}>
+        <div>{formatDay(payout.scheduledFor)}</div>
+        {payout.status === "scheduled" && <div className="text-xs text-green-800">Approved · sends on this date</div>}
+        {payout.status === "payout_failed" && <div className="text-xs font-medium text-red-700">Failed · {payout.statusReason}</div>}
+      </td>
+      <td className={`${td} pr-4`}>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {editable && (
+            <a href={`/approvals/${payout.id}`} className={buttonVariants({ variant: "outline" })}>
+              <Pencil aria-hidden="true" />
+              Edit
+            </a>
+          )}
+          {awaiting && !locked && (
+            <button formAction={approveOne.bind(null, payout.id)} className={buttonVariants()}>
+              <Check aria-hidden="true" />
+              Approve
+            </button>
+          )}
+          {locked && <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-900">Locked · deposit not received</span>}
+          {payout.status === "scheduled" && (
+            <button formAction={sendNow.bind(null, payout.id)} className={buttonVariants({ variant: "outline", className: "border-zinc-900 font-semibold" })}>
+              <Send aria-hidden="true" />
+              Send now
+            </button>
+          )}
+          {payout.status === "payout_sent" && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-900">
+              <Send className="size-3" aria-hidden="true" />
+              Sent · waiting for PayPal
+            </span>
+          )}
+          {payout.status === "payout_failed" && (
+            <button formAction={retryFailed.bind(null, payout.id)} className={buttonVariants({ variant: "destructive" })}>
+              <RotateCcw aria-hidden="true" />
+              Retry payout
+            </button>
+          )}
+        </div>
+      </td>
+    </tr>
   );
 }

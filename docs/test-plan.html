@@ -3,12 +3,9 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>On-Track test plan</title>
+    <title>On-Track e2e test plan</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700;800&display=swap"
-      rel="stylesheet"
-    />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <style>
       :root {
         --primary: #d6b447;
@@ -107,680 +104,221 @@
       .sc[data-state="fail"] { background: color-mix(in srgb, var(--fail) 30%, var(--card)); }
       .note { font-size: 12px; color: var(--muted); }
     </style>
+    
+<style>
+  .sc > .hd .ai { background: #ddd6fe; color: #18181b; border-radius: 999px; padding: 0 8px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+  .sc > .hd .should { background: #e4e4e7; color: #18181b; border-radius: 999px; padding: 0 8px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+  .sc > .hd .nice { background: #f4f4f5; color: #52525b; border-radius: 999px; padding: 0 8px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+  .doc h3 { font-size: 14px; margin: 18px 0 6px; }
+  .doc h4 { font-size: 13px; margin: 14px 0 4px; }
+  .doc ul.todo { list-style: none; padding-left: 4px; }
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 12px; }
+  .filters label { display: inline-flex; gap: 4px; align-items: center; cursor: pointer; }
+  details.doc { border: 2px solid var(--base-dark); border-radius: 10px; padding: 8px 14px; margin: 12px 0; background: var(--card); }
+  details.doc > summary { cursor: pointer; font-weight: 800; font-size: 14px; }
+</style>
+
   </head>
   <body>
     <main>
-      <h1>On-Track test plan</h1>
-      <p class="sub">
-        2026-10-17 · Phases 1–2 · Phase 1 basics (views, PayPal smoke test), then money flows: deposit invoice, PayPal webhook, approvals, payouts, post checklist,
-        freelancer invoice match, uploads, daily run, audit log · PayPal sandbox only
-      </p>
-
+      <h1>On-Track e2e test plan</h1>
+      <p class="sub">Generated from <code>docs/e2e-and-remaining-work.md</code> · Phases 1–4 · tags: <b>must</b>/<b>should</b>/<b>nice</b> priority, <b>money</b> = real PayPal sandbox call, <b>ai</b> = real Claude call. Marks and notes are saved in this browser.</p>
       <div class="hud">
         <b><span id="done">0</span> / <span id="total">0</span></b>
         <div class="bar"><i id="fill"></i></div>
         <span class="note" id="fails"></span>
+        <span class="filters">Show:
+          <label><input type="checkbox" value="must" checked> must</label>
+          <label><input type="checkbox" value="should" checked> should</label>
+          <label><input type="checkbox" value="nice" checked> nice</label>
+        </span>
         <button type="button" onclick="resetAll()">Reset</button>
       </div>
-
-      <h2>Preflight</h2>
-      <pre><code># 1. Database + app
-make up
-npm run dev                      # http://localhost:3000
-
-# 2. PayPal webhooks reach your laptop (only for cards marked "money")
-cloudflared tunnel --url http://localhost:3000
-#   New URL each restart → update it in developer.paypal.com
-#   (Apps &amp; Credentials → app → Sandbox Webhooks → edit)
-
-# 3. .env must have (values never committed):
-#   PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET / PAYPAL_API_BASE (sandbox)
-#   PAYPAL_WEBHOOK_ID       from the webhook you registered
-#   SANDBOX_CLIENT_EMAIL    a sandbox PERSONAL account (pays invoices)
-#   SANDBOX_CREATOR_EMAIL   a sandbox PERSONAL account (gets payouts), not the business one
-#   CRON_SECRET             openssl rand -hex 32
-#   PAYPAL_WEBHOOK_DEBUG=0  (1 only while debugging; logs contain emails)
-
-# 4. Pick the data for the section you're testing
-npm run db:seed:fresh            # start of demo: deposit not sent, nothing verified
-npm run db:seed                  # mid-campaign: deposit paid, @jasonlifts payout awaiting approval</code></pre>
-      <p class="note">
-        Every reseed creates a new campaign id: go back to <code>/</code> and open the campaign again; old tabs 404.
-        Restart <code>npm run dev</code> after any <code>.env</code> or <code>next.config.ts</code> change.
-        Cards tagged <b>money</b> make real sandbox PayPal calls (test money, but they draw down the sandbox balance).
-        Keep a 4–7&nbsp;MB image, a small PNG, a small PDF and an <code>.svg</code> handy for the upload cards.
-      </p>
-
-      <h2>Requirement coverage</h2>
-      <div class="tablewrap">
-      <table>
-        <thead><tr><th>Req</th><th>What</th><th>Covered by</th></tr></thead>
-        <tbody>
-          <tr><td>Phase 1</td><td>Seed data, Team and Calendar views, PayPal client, safety rules</td><td>B1–B5, P1</td></tr>
-          <tr><td>R5</td><td>Deposit invoice in one click; balance as a draft</td><td>D1, D4, D5</td></tr>
-          <tr><td>R6</td><td>Client pays → campaign updates by itself, payouts unlock</td><td>D2, D3, W1, C5</td></tr>
-          <tr><td>R7–R8</td><td>Post proof upload + checklist, hold with note</td><td>V1–V6</td></tr>
-          <tr><td>R9</td><td>Verified post queues a payout of the fee</td><td>V1, V5</td></tr>
-          <tr><td>R10–R12</td><td>Freelancer invoice compared, held, override</td><td>F1–F6</td></tr>
-          <tr><td>R15</td><td>No payout before the deposit clears</td><td>D6, A3, G1</td></tr>
-          <tr><td>R16</td><td>Never above the fee; paid only once</td><td>A6, A9, F3, G2</td></tr>
-          <tr><td>R17</td><td>Every payout approved by a person, one or batch</td><td>A1, A2, A10, C4</td></tr>
-          <tr><td>R21</td><td>Audit log of every change with who and why</td><td>L1, L2</td></tr>
-          <tr><td>R25</td><td>Scheduled payouts sent on their date; Send now</td><td>A8, C3</td></tr>
-          <tr><td>R26</td><td>Edit amount/date with reason; resets approval</td><td>A5–A7</td></tr>
-        </tbody>
-      </table>
-      </div>
-
-      <h2>P — Preflight</h2>
-
-      <div class="sc" id="P1">
-        <div class="hd"><span class="id">P1</span> Automated suites are green <span class="tags"><span class="must">must pass</span></span></div>
-        <div class="bd">
-          <div class="lbl">Do</div>
-          <ol><li><code>npm test</code></li><li><code>npm run test:int</code> (or <code>make test-int</code>)</li><li><code>npm run build</code></li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li>All unit tests pass (59), all integration tests pass (43), build compiles.</li></ul>
-          <div class="watch">If <code>test:int</code> fails with a connection error, the DB container is down: <code>make up</code>, then <code>make test-db</code>.</div>
-        </div>
-      </div>
-
-      <div class="sc" id="P2">
-        <div class="hd"><span class="id">P2</span> Pages load <span class="tags"><span class="must">must pass</span></span></div>
-        <div class="bd">
-          <div class="lbl">Do</div>
-          <ol><li><code>npm run db:seed</code>, open <code>/</code>, the campaign, <b>Team</b>, <b>Calendar</b>, <b>Approvals</b>, <b>Audit log</b>.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li>Top nav shows On-Track · Campaigns · Approvals. Every page renders; no error overlay.</li><li>Team view: calendar, deposit panel, and the assignments table below it.</li></ul>
-        </div>
-      </div>
-
-      <h2>B — Phase 1 basics</h2>
-
-      <div class="sc" id="B1">
-        <div class="hd"><span class="id">B1</span> Home and campaign Team view <span class="tags"><span class="must">must pass</span></span></div>
-        <div class="bd">
-          <p class="meta">Data: <code>db:seed</code> · Bryntum Scheduler</p>
-          <div class="lbl">Do</div>
-          <ol><li>Open <code>/</code> → <em>Kopi Kita · Pagi Launch</em> → <b>Team</b>.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul>
-            <li>Header: client, <em>Oct 19 – Nov 20, 2026 · USD</em>, Team/Calendar tabs, colour legend.</li>
-            <li>Rows: Kopi Kita Sdn Bhd, @aina.eats, @jasonlifts, @mira.travels, Daniel Lim. Two weeks from Mon Oct 19.</li>
-            <li>Chips sit on the right days with short, unclipped labels; colours match the legend (e.g. @jasonlifts yellow <em>Approve $1,200</em> on Oct 29).</li>
-          </ul>
-          <div class="watch">A chip one day off means a date was turned into a <code>Date</code> somewhere (timezone shift, agency is UTC+8).</div>
-        </div>
-      </div>
-
-      <div class="sc" id="B2">
-        <div class="hd"><span class="id">B2</span> Calendar view and switching tabs</div>
-        <div class="bd">
-          <div class="lbl">Do</div>
-          <ol><li>Click <b>Calendar</b>, then <b>Team</b> again. Keep DevTools console open.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li>October month view with the same events. Each switch is a full page load; both render, no console errors.</li></ul>
-        </div>
-      </div>
-
-      <div class="sc" id="B3">
-        <div class="hd"><span class="id">B3</span> Bad campaign links</div>
-        <div class="bd">
-          <div class="lbl">Do</div>
-          <ol><li>Open <code>/campaigns/not-a-uuid/team</code> and <code>/campaigns/00000000-0000-0000-0000-000000000000/calendar</code>.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li>A 404 page for both, not a 500.</li></ul>
-        </div>
-      </div>
-
-      <div class="sc" id="B4">
-        <div class="hd"><span class="id">B4</span> PayPal sandbox smoke test <span class="tags"><span class="money">money</span></span></div>
-        <div class="bd">
-          <div class="lbl">Do</div>
-          <ol><li><code>npm run paypal:smoke</code></li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li>A $1.00 invoice and a $1.00 payout are created; the script prints their ids. Both visible in the sandbox dashboard.</li></ul>
-          <div class="watch">403 NOT_AUTHORIZED after enabling a feature = cached token; <code>INSUFFICIENT_FUNDS</code> = no USD balance. Use <code>/paypal:explain-error &lt;code&gt;</code>.</div>
-        </div>
-      </div>
-
-      <div class="sc" id="B5">
-        <div class="hd"><span class="id">B5</span> Payout safety rules</div>
-        <div class="bd">
-          <p class="meta">Covered by <code>guardrails.test.ts</code> and <code>payout.test.ts</code> in P1; no manual step</p>
-          <div class="lbl">Expect</div>
-          <ul><li><code>canPay()</code> denies: deposit not cleared, already paid, not verified, above fee; needs approval when unapproved.</li><li>Money stays integer cents; PayPal gets 2-decimal strings; the payout id is the idempotency key; a 401 retries once with a fresh token.</li></ul>
-        </div>
-      </div>
-
-      <h2>D — Client deposit and balance invoices</h2>
-
-      <div class="sc" id="D1">
-        <div class="hd"><span class="id">D1</span> Send the deposit invoice <span class="tags"><span class="must">must pass</span><span class="money">money</span></span></div>
-        <div class="bd">
-          <p class="meta">Data: <code>db:seed:fresh</code> · Code: <code>sendDepositInvoice()</code></p>
-          <div class="lbl">Do</div>
-          <ol><li>Team view → amber line <em>"Deposit $6,000.00 not sent…"</em> → <b>Send deposit invoice</b>.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul>
-            <li>Notice <em>"Deposit invoice sent to the client through PayPal."</em></li>
-            <li>Grey line <em>"Deposit $6,000.00 sent. Waiting for the client to pay…"</em> with <b>Open as client (sandbox)</b> and <b>Check payment</b>.</li>
-            <li>The invoice <code>OT-xxxxxxxx-DEP</code> exists in the sandbox business account.</li>
-          </ul>
-        </div>
-      </div>
-
-      <div class="sc" id="D2">
-        <div class="hd"><span class="id">D2</span> Client pays → banner turns green by itself <span class="tags"><span class="must">must pass</span><span class="money">money</span></span></div>
-        <div class="bd">
-          <p class="meta">Needs: tunnel · Code: webhook → <code>markInvoicePaid()</code></p>
-          <div class="lbl">Do</div>
-          <ol><li>After D1, click <b>Open as client (sandbox)</b>, log in as the sandbox <b>personal</b> account, pay in full.</li><li>Go back to the Team tab. <b>Don't reload.</b></li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li>Within ~1 min: green <em>"Client deposit received · $6,000.00. Creator payouts on this campaign are unlocked."</em></li></ul>
-          <div class="watch">The sandbox sometimes never fires <code>INVOICING.INVOICE.PAID</code> (seen Oct 17). If nothing arrives after a few minutes, that's PayPal, not us: run D3. Record which path settled it.</div>
-        </div>
-      </div>
-
-      <div class="sc" id="D3">
-        <div class="hd"><span class="id">D3</span> Check payment fallback <span class="tags"><span class="must">must pass</span><span class="money">money</span></span></div>
-        <div class="bd">
-          <p class="meta">Code: <code>checkInvoicePayment()</code></p>
-          <div class="lbl">Do</div>
-          <ol><li>With the deposit sent but <b>unpaid</b>: click <b>Check payment</b>.</li><li>Pay it as the client, then click <b>Check payment</b> again.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li>Unpaid: <em>"PayPal still shows the deposit as unpaid."</em> Nothing changes.</li><li>Paid: <em>"PayPal confirms the deposit is paid."</em> + green banner.</li><li>Audit log: <code>invoice.paid</code> by <code>paypal</code> with <code>via: status check</code>, exactly once even if the webhook also arrives later.</li></ul>
-        </div>
-      </div>
-
-      <div class="sc" id="D4">
-        <div class="hd"><span class="id">D4</span> Balance invoice saved as a draft <span class="tags"><span class="money">money</span></span></div>
-        <div class="bd">
-          <div class="lbl">Do</div>
-          <ol><li>Click <b>Create balance draft · due Nov 20</b>.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li>Notice <em>"Balance invoice saved in PayPal as a draft."</em>; the button disappears.</li><li>In PayPal it is a <b>draft</b> (<code>OT-…-BAL</code>), not sent to the client.</li></ul>
-        </div>
-      </div>
-
-      <div class="sc" id="D5">
-        <div class="hd"><span class="id">D5</span> Double click doesn't send two invoices <span class="tags"><span class="money">money</span></span></div>
-        <div class="bd">
-          <div class="lbl">Do</div>
-          <ol><li>Open the Team view in two tabs while the deposit is unsent. Click <b>Send deposit invoice</b> in both.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li>One tab succeeds; the other says <em>"The deposit invoice was already sent"</em>.</li><li>Only one <code>OT-…-DEP</code> invoice in PayPal.</li></ul>
-        </div>
-      </div>
-
-      <div class="sc" id="D6">
-        <div class="hd"><span class="id">D6</span> Payouts stay locked until the deposit clears <span class="tags"><span class="must">must pass</span></span></div>
-        <div class="bd">
-          <p class="meta">Guardrail: <code>canPay()</code> → "Client deposit not received" (R15)</p>
-          <div class="lbl">Do</div>
-          <ol><li><code>db:seed:fresh</code> → verify a post (V1) so a payout exists → open <b>Approvals</b>.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li>Deposit column <em>"Not received"</em>; row shows <em>"Locked until the deposit clears"</em>; no checkbox, no Approve.</li><li>After D2/D3 the same row gets <b>Approve</b>.</li></ul>
-        </div>
-      </div>
-
-      <h2>A — Approval queue and payouts</h2>
-
-      <div class="sc" id="A1">
-        <div class="hd"><span class="id">A1</span> Approve one <span class="tags"><span class="must">must pass</span></span></div>
-        <div class="bd">
-          <p class="meta">Data: <code>db:seed</code></p>
-          <div class="lbl">Do</div>
-          <ol><li><b>Approvals</b> → @jasonlifts → <b>Approve</b>.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li>Notice <em>"1 approved and scheduled"</em>. Row now has <b>Send now</b> and <em>Edit or reject</em>.</li><li>Row shows $1,200.00, fee $1,200.00, <em>"Post checklist · Mei Tan"</em>, deposit Received, Oct 29.</li></ul>
-          <div class="watch">Regression: if it says <em>"Payout not found"</em>, the row button lost its payout id (React drops <code>name/value</code> on a button with a function <code>formAction</code>).</div>
-        </div>
-      </div>
-
-      <div class="sc" id="A2">
-        <div class="hd"><span class="id">A2</span> Batch approve</div>
-        <div class="bd">
-          <div class="lbl">Do</div>
-          <ol><li>Click <b>Approve &amp; schedule selected</b> with nothing ticked.</li><li>Tick two payouts → click it again.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li>Nothing ticked: <em>"Select at least one payout"</em>.</li><li>Two ticked: <em>"2 approved and scheduled"</em>.</li></ul>
-        </div>
-      </div>
-
-      <div class="sc" id="A3">
-        <div class="hd"><span class="id">A3</span> Acting-as is recorded</div>
-        <div class="bd">
-          <div class="lbl">Do</div>
-          <ol><li>Switch <b>Acting as</b> to Hana Aziz, approve a payout, open the Audit log.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li><code>payout.approved</code> by <b>Hana Aziz</b>.</li></ul>
-        </div>
-      </div>
-
-      <div class="sc" id="A4">
-        <div class="hd"><span class="id">A4</span> Edit or reject page</div>
-        <div class="bd">
-          <div class="lbl">Do</div>
-          <ol><li>Click <em>Edit or reject</em> on a row.</li><li>Visit <code>/approvals/not-a-uuid</code>.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li>Breadcrumb, title <em>"Edit payout · …"</em>, contract fee and verification shown, amount and date pre-filled.</li><li>The bad id shows a 404 page, not a crash.</li></ul>
-        </div>
-      </div>
-
-      <div class="sc" id="A5">
-        <div class="hd"><span class="id">A5</span> Lower the amount → back to approval <span class="tags"><span class="must">must pass</span></span></div>
-        <div class="bd">
-          <p class="meta">R26 · Code: <code>validatePayoutEdit()</code></p>
-          <div class="lbl">Do</div>
-          <ol><li>On an <b>approved</b> payout: amount <code>1,100</code>, reason "Agreed discount", Save.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li><em>"Payout updated. Edited payouts need approval again."</em></li><li>Row is $1,100.00 with <b>Approve</b> again (not Send now).</li><li>Audit log <code>payout.edited</code> with before/after amounts and <code>approvalReset: true</code>.</li></ul>
-        </div>
-      </div>
-
-      <div class="sc" id="A6">
-        <div class="hd"><span class="id">A6</span> Can't raise above the contract fee <span class="tags"><span class="must">must pass</span></span></div>
-        <div class="bd">
-          <div class="lbl">Do</div>
-          <ol><li>Amount <code>1,300</code> (fee $1,200) with a reason, Save.</li><li>Amount <code>12.345</code>, Save.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li><em>"Amount is above the contract fee"</em>; nothing changes.</li><li><em>"Enter the amount like 1,200.00"</em>.</li></ul>
-        </div>
-      </div>
-
-      <div class="sc" id="A7">
-        <div class="hd"><span class="id">A7</span> Date rules and reason required</div>
-        <div class="bd">
-          <div class="lbl">Do</div>
-          <ol><li>Set the date to yesterday, Save.</li><li>Clear the reason, Save.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li><em>"Payout date can't be in the past"</em> (today is the agency's date, UTC+8).</li><li>Empty reason: the browser blocks the submit (required field).</li></ul>
-        </div>
-      </div>
-
-      <div class="sc" id="A8">
-        <div class="hd"><span class="id">A8</span> Send now → paid via webhook <span class="tags"><span class="must">must pass</span><span class="money">money</span></span></div>
-        <div class="bd">
-          <p class="meta">Needs: tunnel · Code: <code>sendPayout()</code> → <code>createPayout()</code></p>
-          <div class="lbl">Do</div>
-          <ol><li>On an approved payout click <b>Send now</b>.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li><em>"Sent to PayPal. It turns paid when PayPal confirms."</em>; row shows <em>"Sent via PayPal"</em>.</li><li>Within ~1 min the row leaves the queue; assignment shows <b>Paid</b> in the Team table.</li><li>Audit log: <code>payout.sending</code>, <code>payout.sent</code>, then <code>payout.paid</code> by <code>paypal</code>.</li></ul>
-          <div class="watch">If it fails with <em>SELF_PAY_NOT_ALLOWED</em>, <code>SANDBOX_CREATOR_EMAIL</code> is the business account. Use a personal one and reseed.</div>
-        </div>
-      </div>
-
-      <div class="sc" id="A9">
-        <div class="hd"><span class="id">A9</span> Two clicks pay only once <span class="tags"><span class="must">must pass</span><span class="money">money</span></span></div>
-        <div class="bd">
-          <p class="meta">Row lock + <code>sender_batch_id</code> = payout id</p>
-          <div class="lbl">Do</div>
-          <ol><li>Open Approvals in two tabs on the same approved payout. Click <b>Send now</b> in both, quickly.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li>One tab sends; the other says <em>"Already sent"</em>.</li><li>Exactly one batch in the PayPal dashboard.</li></ul>
-        </div>
-      </div>
-
-      <div class="sc" id="A10">
-        <div class="hd"><span class="id">A10</span> Reject and hold</div>
-        <div class="bd">
-          <div class="lbl">Do</div>
-          <ol><li>Edit or reject → Reject with reason "Wrong product shown".</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li><em>"Payout rejected and held. The reason is in the audit log."</em> Row leaves the queue.</li><li>Team table shows the assignment as <b>Held</b> (red). Audit log <code>payout.rejected</code> with the reason.</li></ul>
-        </div>
-      </div>
-
-      <div class="sc" id="A11">
-        <div class="hd"><span class="id">A11</span> A sent payout can't be edited</div>
-        <div class="bd">
-          <div class="lbl">Do</div>
-          <ol><li>After A8, open <code>/approvals/&lt;that payout id&gt;</code> directly.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li><em>"This payout was already sent, so it can't be changed."</em> No forms.</li></ul>
-        </div>
-      </div>
-
-      <div class="sc" id="A12">
-        <div class="hd"><span class="id">A12</span> Failed payout shows PayPal's reason</div>
-        <div class="bd">
-          <div class="lbl">Do (optional)</div>
-          <ol><li>Temporarily set <code>SANDBOX_CREATOR_EMAIL</code> to the business account, reseed, approve, Send now.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li>After the webhook: row shows <em>"Failed · SELF_PAY_NOT_ALLOWED"</em> (PayPal's error name, not just <em>FAILED</em>).</li></ul>
-          <div class="watch">Put the email back and restart dev afterwards.</div>
-        </div>
-      </div>
-
-      <h2>V — Influencer post proof and checklist</h2>
-
-      <div class="sc" id="V1">
-        <div class="hd"><span class="id">V1</span> Verify a post → payout queued <span class="tags"><span class="must">must pass</span></span></div>
-        <div class="bd">
-          <p class="meta">Data: <code>db:seed</code> · @mira.travels · Code: <code>submitPostCheck()</code></p>
-          <div class="lbl">Do</div>
-          <ol><li>Team table → @mira.travels → <b>Verify post</b>.</li><li>Upload a small PNG, tick all 3, <b>Mark verified</b>.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li>Brief shows tag, hashtags and posting window.</li><li><em>"Post verified. The payout is waiting for approval."</em>; green box; the screenshot shows on the left.</li><li>Approvals lists @mira.travels at $2,000.00 with <em>"Post checklist · Mei Tan"</em>.</li></ul>
-        </div>
-      </div>
-
-      <div class="sc" id="V2">
-        <div class="hd"><span class="id">V2</span> Missing tick blocks verify <span class="tags"><span class="must">must pass</span></span></div>
-        <div class="bd">
-          <div class="lbl">Do</div>
-          <ol><li>Upload, tick only 2 items, <b>Mark verified</b>.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li><em>"Tick every item to verify. Missing: Posted inside the window"</em>. Nothing saved, no payout.</li></ul>
-        </div>
-      </div>
-
-      <div class="sc" id="V3">
-        <div class="hd"><span class="id">V3</span> Hold needs a note</div>
-        <div class="bd">
-          <div class="lbl">Do</div>
-          <ol><li>Upload, tick 1 item, empty note, <b>Hold with note</b>.</li><li>Again with note "No #ad".</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li>Empty: <em>"A note is required to hold"</em>.</li><li>With note: <em>"Post held. No payout until a new screenshot passes."</em>; red <em>"Held. No #ad…"</em>; no payout in Approvals.</li></ul>
-        </div>
-      </div>
-
-      <div class="sc" id="V4">
-        <div class="hd"><span class="id">V4</span> Held post can be re-checked</div>
-        <div class="bd">
-          <div class="lbl">Do</div>
-          <ol><li>After V3, upload a new screenshot, tick all 3, Mark verified.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li>Verified; payout queued; the new screenshot is shown.</li></ul>
-        </div>
-      </div>
-
-      <div class="sc" id="V5">
-        <div class="hd"><span class="id">V5</span> Late verification is scheduled for today</div>
-        <div class="bd">
-          <p class="meta">Covered by <code>verification.int.test.ts</code>; manual check optional</p>
-          <div class="lbl">Expect</div>
-          <ul><li>If the contract payout date has passed, the queued payout's date is <b>today</b>, never in the past.</li></ul>
-        </div>
-      </div>
-
-      <div class="sc" id="V6">
-        <div class="hd"><span class="id">V6</span> Verified post shows no form</div>
-        <div class="bd">
-          <div class="lbl">Do</div>
-          <ol><li>Open <b>Verify post</b> for @jasonlifts (already verified in <code>db:seed</code>).</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li>Green <em>"Post verified. A $1,200.00 payout is in the approval queue."</em> + <b>Open approvals</b>. No upload form.</li></ul>
-        </div>
-      </div>
-
-      <h2>F — Freelancer invoice</h2>
-
-      <div class="sc" id="F1">
-        <div class="hd"><span class="id">F1</span> Matching invoice → payout queued <span class="tags"><span class="must">must pass</span></span></div>
-        <div class="bd">
-          <p class="meta">Data: <code>db:seed</code> · Daniel Lim · Code: <code>submitInvoice()</code> + <code>compareInvoice()</code></p>
-          <div class="lbl">Do</div>
-          <ol><li>Team table → Daniel Lim → <b>Invoice</b>.</li><li>Small PDF; payee <code>Daniel Lim</code>; the creator PayPal email; deliverable <code>2 × 30s product video edits</code>; amount <code>1,000.00</code>. <b>Check against contract</b>.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li><em>"Invoice checked against the contract."</em>; green <em>"Invoice matches. A $1,000.00 payout…"</em>; table all <em>Yes</em>.</li></ul>
-        </div>
-      </div>
-
-      <div class="sc" id="F2">
-        <div class="hd"><span class="id">F2</span> Over-invoice is held <span class="tags"><span class="must">must pass</span></span></div>
-        <div class="bd">
-          <div class="lbl">Do</div>
-          <ol><li>Same as F1 but amount <code>1,200.00</code>.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li>Red <em>"Payout held…"</em>; Amount row <em>$1,000.00</em> vs <b>$1,200.00</b>, <em>No</em>. No payout in Approvals. Team table: Held.</li></ul>
-        </div>
-      </div>
-
-      <div class="sc" id="F3">
-        <div class="hd"><span class="id">F3</span> Override pays the fee, not the invoice <span class="tags"><span class="must">must pass</span></span></div>
-        <div class="bd">
-          <div class="lbl">Do</div>
-          <ol><li>After F2: reason "Client approved an extra revision" → <b>Override with reason</b>.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li><em>"Override logged. The payout is waiting for approval."</em></li><li>Approvals: Daniel at <b>$1,000.00</b> (never $1,200), <em>"Invoice override · Mei Tan"</em>.</li><li>Audit log <code>invoice.override</code> with reason, invoiced and payout amounts.</li></ul>
-        </div>
-      </div>
-
-      <div class="sc" id="F4">
-        <div class="hd"><span class="id">F4</span> Under-invoice override pays the lower amount</div>
-        <div class="bd">
-          <div class="lbl">Do</div>
-          <ol><li>Reseed. Invoice amount <code>900</code> → held → override with a reason.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li>Payout is <b>$900.00</b>.</li></ul>
-        </div>
-      </div>
-
-      <div class="sc" id="F5">
-        <div class="hd"><span class="id">F5</span> Other mismatches are flagged</div>
-        <div class="bd">
-          <div class="lbl">Do</div>
-          <ol><li>Wrong payee name, or a different PayPal email, or a different deliverable.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li>That row is red with both values; invoice held.</li></ul>
-          <div class="watch">A different PayPal email being "Yes" is a fail: paying the wrong account is the costliest mistake.</div>
-        </div>
-      </div>
-
-      <div class="sc" id="F6">
-        <div class="hd"><span class="id">F6</span> Bad amount, missing reason</div>
-        <div class="bd">
-          <div class="lbl">Do</div>
-          <ol><li>Amount <code>12.345</code>.</li><li>On a held invoice, Override with an empty reason.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li><em>"Enter the invoiced amount like 1,200.00"</em>.</li><li>Browser blocks the empty reason (required).</li></ul>
-        </div>
-      </div>
-
-      <h2>U — Uploads</h2>
-
-      <div class="sc" id="U1">
-        <div class="hd"><span class="id">U1</span> File over 4 MB blocked in the browser <span class="tags"><span class="must">must pass</span></span></div>
-        <div class="bd">
-          <p class="meta">Code: <code>&lt;FileInput&gt;</code></p>
-          <div class="lbl">Do</div>
-          <ol><li>Pick a 5–7 MB image on Verify post (and on Invoice) → submit.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li>Browser bubble <em>"The file is larger than 4 MB. Choose a smaller one."</em>; nothing is sent.</li></ul>
-        </div>
-      </div>
-
-      <div class="sc" id="U2">
-        <div class="hd"><span class="id">U2</span> Retry with a small file, same page <span class="tags"><span class="must">must pass</span></span></div>
-        <div class="bd">
-          <div class="lbl">Do</div>
-          <ol><li>Right after U1, without reloading, pick a small file and submit.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li>Works normally (verified / invoice checked).</li></ul>
-          <div class="watch">Regression: before the fix a &gt;5 MB file crashed the page ("Body exceeded 5mb limit") and every retry failed until reload.</div>
-        </div>
-      </div>
-
-      <div class="sc" id="U3">
-        <div class="hd"><span class="id">U3</span> Between 4 and 20 MB with the browser check bypassed</div>
-        <div class="bd">
-          <div class="lbl">Do (dev)</div>
-          <ol><li>Pick a 7 MB file, then in DevTools console: <code>document.querySelector('input[type=file]').form.noValidate = true</code>; submit.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li>Notice <em>"The file is larger than 4 MB"</em>; page still works. No error overlay.</li></ul>
-        </div>
-      </div>
-
-      <div class="sc" id="U4">
-        <div class="hd"><span class="id">U4</span> Wrong file types refused <span class="tags"><span class="must">must pass</span></span></div>
-        <div class="bd">
-          <div class="lbl">Do</div>
-          <ol><li>The picker hides other types, so <b>drag the file onto the Choose File button</b> (or use the picker's All Files option): upload an <code>.svg</code> as post proof; a <code>.txt</code> as invoice; a PDF as post proof.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li>Post proof: <em>"Upload a PNG, JPEG or WebP image"</em>. Invoice: <em>"Upload a PDF, PNG, JPEG or WebP file"</em>.</li></ul>
-          <div class="watch">Security check: an SVG that gets stored could run script when served back.</div>
-        </div>
-      </div>
-
-      <div class="sc" id="U5">
-        <div class="hd"><span class="id">U5</span> Uploaded files are served safely</div>
-        <div class="bd">
-          <div class="lbl">Do</div>
-          <ol><li>Right-click the verified screenshot → copy image address → <code>curl -I &lt;url&gt;</code>.</li><li><code>curl -I localhost:3000/api/submissions/not-a-uuid/file</code></li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li><code>Content-Type: image/png</code>, <code>X-Content-Type-Options: nosniff</code>, <code>Cache-Control: private, no-store</code>.</li><li>Bad id: <code>404</code>.</li></ul>
-        </div>
-      </div>
-
-      <h2>W — PayPal webhook</h2>
-
-      <div class="sc" id="W1">
-        <div class="hd"><span class="id">W1</span> Unsigned requests are refused <span class="tags"><span class="must">must pass</span></span></div>
-        <div class="bd">
-          <div class="lbl">Do</div>
-          <pre><code>curl -s -X POST localhost:3000/api/webhooks/paypal -d 'not json'
-curl -s -X POST localhost:3000/api/webhooks/paypal \
-  -d '{"id":"WH-FAKE","event_type":"INVOICING.INVOICE.PAID","resource":{"id":"INV2-X"}}'</code></pre>
-          <div class="lbl">Expect</div>
-          <ul><li>Bad JSON → <code>400</code>. Fake event → <code>401 Signature check failed</code>. Nothing changes in the app.</li></ul>
-          <div class="watch">A 200 for the fake event means anyone could mark invoices paid. Hard fail.</div>
-        </div>
-      </div>
-
-      <div class="sc" id="W2">
-        <div class="hd"><span class="id">W2</span> A resent event is processed once <span class="tags"><span class="money">money</span></span></div>
-        <div class="bd">
-          <div class="lbl">Do</div>
-          <ol><li>developer.paypal.com → Event logs / Webhooks events → pick a delivered <code>PAYMENT.PAYOUTS-ITEM.SUCCEEDED</code> → <b>Resend</b>.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li>Dev log: <code>POST /api/webhooks/paypal 200</code> with outcome <code>duplicate</code>. No second audit entry.</li></ul>
-        </div>
-      </div>
-
-      <div class="sc" id="W3">
-        <div class="hd"><span class="id">W3</span> Out-of-order and unknown events</div>
-        <div class="bd">
-          <p class="meta">Covered by <code>webhooks.int.test.ts</code>; no manual step</p>
-          <div class="lbl">Expect</div>
-          <ul><li>A late FAILED after SUCCEEDED keeps the payout paid. Events for unknown invoices/payouts are ignored. Batch events don't change anything.</li></ul>
-        </div>
-      </div>
-
-      <h2>C — Daily payout run</h2>
-
-      <div class="sc" id="C1">
-        <div class="hd"><span class="id">C1</span> Needs the cron secret <span class="tags"><span class="must">must pass</span></span></div>
-        <div class="bd">
-          <div class="lbl">Do</div>
-          <pre><code>curl -s -X POST localhost:3000/api/payouts/run-due
-curl -s -X POST -H "Authorization: Bearer wrong" localhost:3000/api/payouts/run-due</code></pre>
-          <div class="lbl">Expect</div>
-          <ul><li>Both <code>{"error":"Unauthorized"}</code> (401). Nothing sent.</li></ul>
-        </div>
-      </div>
-
-      <div class="sc" id="C2">
-        <div class="hd"><span class="id">C2</span> Nothing due → nothing sent</div>
-        <div class="bd">
-          <div class="lbl">Do</div>
-          <pre><code>curl -s -X POST -H "Authorization: Bearer $(grep ^CRON_SECRET= .env | cut -d= -f2-)" \
-  localhost:3000/api/payouts/run-due</code></pre>
-          <div class="lbl">Expect</div>
-          <ul><li><code>{"today":"…","invoicesSettled":0,"results":[]}</code> while all payout dates are in the future.</li></ul>
-        </div>
-      </div>
-
-      <div class="sc" id="C3">
-        <div class="hd"><span class="id">C3</span> Sends an approved payout on its date <span class="tags"><span class="must">must pass</span><span class="money">money</span></span></div>
-        <div class="bd">
-          <div class="lbl">Do</div>
-          <ol><li><code>db:seed</code> → edit @jasonlifts' date to <b>today</b> with a reason → Approve.</li><li>Run the C2 curl.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li><code>"results":[{"id":"…","result":{"ok":true}}]</code>; payout turns paid via webhook; audit actor <code>daily run</code>.</li></ul>
-        </div>
-      </div>
-
-      <div class="sc" id="C4">
-        <div class="hd"><span class="id">C4</span> Never sends an unapproved payout <span class="tags"><span class="must">must pass</span></span></div>
-        <div class="bd">
-          <div class="lbl">Do</div>
-          <ol><li>Edit a payout's date to today but <b>don't approve</b>. Run the C2 curl.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li>Not in <code>results</code>; still <em>awaiting approval</em> in the queue.</li></ul>
-          <div class="watch">Any unapproved payout sent here breaks "every payout needs a person's approval". Hard fail.</div>
-        </div>
-      </div>
-
-      <div class="sc" id="C5">
-        <div class="hd"><span class="id">C5</span> Settles a paid invoice the webhook missed <span class="tags"><span class="money">money</span></span></div>
-        <div class="bd">
-          <div class="lbl">Do</div>
-          <ol><li><code>db:seed:fresh</code> → send deposit → pay as client → <b>don't</b> click Check payment → run the C2 curl.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li><code>"invoicesSettled":1</code> (or 0 if the webhook already did it) and the green banner on the Team view.</li></ul>
-        </div>
-      </div>
-
-      <h2>L — Audit log</h2>
-
-      <div class="sc" id="L1">
-        <div class="hd"><span class="id">L1</span> Every step is logged with who <span class="tags"><span class="must">must pass</span></span></div>
-        <div class="bd">
-          <div class="lbl">Do</div>
-          <ol><li>After running D, V, F and A cards: campaign → <b>Audit log</b>.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul>
-            <li>Newest first. Entries for <code>invoice.created/sent/paid</code>, <code>post.verified/held</code>, <code>invoice.matched/held/override</code>, <code>payout.queued/approved/edited/rejected/sending/sent/paid</code>.</li>
-            <li>Actor is the person picked in <b>Acting as</b>, <code>paypal</code> for webhook/status-check changes, <code>daily run</code> for C3.</li>
-            <li>Times in Kuala Lumpur time.</li>
-          </ul>
-        </div>
-      </div>
-
-      <div class="sc" id="L2">
-        <div class="hd"><span class="id">L2</span> Readable details</div>
-        <div class="bd">
-          <div class="lbl">Expect</div>
-          <ul><li>Amounts in dollars (<em>amountCents: $1,000.00</em>); reasons shown verbatim; ids hidden.</li><li>Empty campaign: <em>"Nothing logged yet."</em></li></ul>
-        </div>
-      </div>
-
-      <h2>G — Guardrails end to end</h2>
-
-      <div class="sc" id="G1">
-        <div class="hd"><span class="id">G1</span> Deposit flag re-checked at send time <span class="tags"><span class="must">must pass</span></span></div>
-        <div class="bd">
-          <p class="meta">Covered by <code>payouts.int.test.ts</code>; manual check optional</p>
-          <div class="lbl">Do (optional)</div>
-          <ol><li>Approve a payout, then <code>docker compose exec db psql -U ontrack ontrack -c "update campaigns set deposit_cleared=false"</code>, then <b>Send now</b>.</li></ol>
-          <div class="lbl">Expect</div>
-          <ul><li><em>"Client deposit not received"</em>; no PayPal call.</li></ul>
-        </div>
-      </div>
-
-      <div class="sc" id="G2">
-        <div class="hd"><span class="id">G2</span> One payout per assignment</div>
-        <div class="bd">
-          <div class="lbl">Expect</div>
-          <ul><li>After a payout is paid, the assignment can't be verified or invoiced again (no form shown), and no second payout row appears in Approvals.</li></ul>
-        </div>
-      </div>
-
-      <h2>X — Look and feel</h2>
-
-      <div class="sc" id="X1">
-        <div class="hd"><span class="id">X1</span> Buttons and layout</div>
-        <div class="bd">
-          <div class="lbl">Expect</div>
-          <ul><li>Outline buttons (Send now, Create balance draft, Check payment, Open approvals) have a visible border.</li><li>Approvals table scrolls sideways on a narrow window instead of squashing.</li><li>Zinc greys, thin borders, no gradients or emoji (prototype style).</li></ul>
-        </div>
-      </div>
-
+      <details class="doc"><summary>1. What is done</summary><div class="tablewrap"><table><thead><tr><th>Phase</th><th>Commits</th><th>What it covers</th></tr></thead><tbody><tr><td>1 Foundations</td><td>up to <code>d1693f2</code></td><td>Next.js app, Postgres in Docker, PayPal client (token cache, 401 retry), payout guardrails (<code>canPay</code>, <code>validatePayoutEdit</code>), Team (Bryntum Scheduler) and Calendar views on seed data, <code>npm run paypal:smoke</code></td></tr><tr><td>2 Money flows</td><td>up to <code>11cf231</code></td><td>Deposit and balance invoices in PayPal, verified PayPal webhook (invoice paid, payout item events), approval queue (approve, batch, edit, reject, Send now), post checklist, freelancer invoice match + override, daily run route, audit log, file upload rules, Check payment fallback</td></tr><tr><td>3 AI and views</td><td>up to <code>6888cc6</code></td><td>Claude reads freelancer invoices and contracts (structured output, code decides), eval set (invoices 5/5 caught, 0/5 false holds; contracts 3/3 every field), contract upload → review → create campaign, overdue colours, side panel, 3-second live refresh, week view, drag to reschedule, balance due-date proposal that updates the PayPal invoice</td></tr><tr><td>4 Polish</td><td><code>4369152</code>…<code>ce667f3</code></td><td>Reset demo button, retry a failed payout, one "Acting as" picker (later replaced by a single signed-in user), campaign summary (R20), AI post pre-check (R24), agent that proposes approvals (R22), README, MIT licence, docs updated to local-first</td></tr></tbody></table></div>
+<p>Automated tests at handover: <b>103 unit</b>, <b>70 integration</b>, production build passes.</p></details><details class="doc"><summary>2. What is still to do</summary><p>Work top to bottom. Tick as you go.</p></details><details class="doc"><summary>2.1 Must do before submitting</summary><ul class="todo"><li style="margin-left:0px">☐ <b>Run the end-to-end tests in section 3.</b> At least every case marked <b>MUST</b>. Record results in the <a href="#results-log">results log</a>.</li><li style="margin-left:0px">☐ <b>Fix what the e2e run finds.</b> Re-run the failed cases after each fix, plus <code>npm test &amp;&amp; make test-int &amp;&amp; npm run build</code>.</li><li style="margin-left:0px">☐ <b>Confirm the three things never tested against real PayPal</b> (they are e2e cases below):</li><li style="margin-left:12px">☐ PayPal accepts a due-date change on a balance invoice that was already <b>sent</b> → case <b>G14</b>.</li><li style="margin-left:12px">☐ A retried payout reaches PayPal with <code>sender_batch_id</code> = <code>&lt;payout id&gt;-2</code> and pays → case <b>E16</b>.</li><li style="margin-left:12px">☐ The 3-second refresh does not cancel a slow drag → case <b>G11</b>.</li><li style="margin-left:0px">☐ <b>Record the video</b> (≤ 2:50) following the PRD demo script (section 3.5 is the same flow). Do 2–3 takes; use <b>Reset demo</b> between takes.</li><li style="margin-left:0px">☐ <b>Devpost text:</b> problem, what it does, how it is built (PayPal Invoicing + Payouts + webhooks, Claude Haiku 5.5, Bryntum Scheduler + Calendar), the guardrail story ("AI reads, code decides, a person approves"), eval numbers, what's next. Tools section must list PayPal, Anthropic, Bryntum.</li><li style="margin-left:0px">☐ <b>Repo is public and clean:</b> <code>git status</code> clean, <code>.env</code> not in git (<code>git ls-files | grep -c &quot;^.env$&quot;</code> → <code>0</code>), README renders on GitHub, LICENSE present.</li><li style="margin-left:0px">☐ <b>Push</b> the final commit (<code>git push</code>).</li><li style="margin-left:0px">☐ <b>Submit on Devpost by Nov 11</b> (one day of buffer).</li></ul></details><details class="doc"><summary>2.2 Should do (documentation left over from Phase 3 Task 10)</summary><ul class="todo"><li style="margin-left:0px">☐ <b>Phase 3 notes</b> at the bottom of <code>docs/superpowers/plans/2026-10-17-phase3-ai-views.md</code>: eval results (from section 3, case A12/D7), AI latency per document, whether PayPal allows a due-date update on a <b>sent</b> invoice (G14), anything the e2e run showed.</li><li style="margin-left:0px">☐ <b>PRD Q7</b> in <code>docs/prd.html</code>: replace "Decided" text with the measured result ("Haiku 5.5: invoices 5/5 caught, 0/5 false holds; contracts 3/3 every field correct").</li><li style="margin-left:0px">☐ <b>PRD Q2 (Bryntum trial for judges):</b> ask on the PayPal Discord whether trial packages keep working after 45 days; update Q2 with the answer.</li><li style="margin-left:0px">☐ <b>README screenshots</b> (optional): 2–3 images (Team view, approval queue, agent panel) in <code>docs/img/</code>, linked from the README.</li></ul></details><details class="doc"><summary>2.3 Optional</summary><ul class="todo"><li style="margin-left:0px">☐ <b>Host on Vercel</b> (Phase 4 Task 8, parked). Only if you want a public URL for judges. Steps are in <code>docs/superpowers/plans/2026-10-20-phase4-polish.md</code>, Task 8.</li><li style="margin-left:0px">☐ <b>Clean up the sandbox:</b> delete test invoices you no longer need in the sandbox business account (e.g. the draft <code>OT-F415F408-BAL</code> from Phase 3 testing). Not required.</li></ul></details><details class="doc"><summary>2.4 Known small issues (fix only if they bother you in the video)</summary><div class="tablewrap"><table><thead><tr><th>Issue</th><th>Where</th><th>Note</th></tr></thead><tbody><tr><td>After <b>Propose</b>, the page doesn't scroll to the agent panel</td><td>Team view</td><td>The URL ends with <code>#agent</code>, but the Bryntum view loads after the jump. Scroll down by hand.</td></tr><tr><td>Port 3000 may be taken by another app (Odin)</td><td><code>npm run dev</code></td><td>Next then uses <b>3001</b>; use whatever URL it prints. The tunnel must point at the same port.</td></tr><tr><td>Calendar "Today" circle and Bryntum trial watermark</td><td>Calendar</td><td>Bryntum's own UI; the watermark is from the trial licence.</td></tr><tr><td>Rows in the Team view sort with <code>Daniel Lim</code> between <code>@aina.eats</code> and <code>@jasonlifts</code></td><td>Team view</td><td>Postgres ignores the <code>@</code> when sorting. Stable, just not "influencers first".</td></tr></tbody></table></div></details><details class="doc"><summary>2.5 Found by the flow map (2026-10-26)</summary><p>From <code>~/Downloads/odin-map-on-track.html</code> (Flags button). Most important first.</p>
+<ul class="todo"><li style="margin-left:0px">☐ **Payout stuck in <code>payout_sent</code> has no backup check.** On a PayPal timeout or 5xx the payout stays <code>payout_sent</code> until the webhook arrives (<code>src/lib/services/payouts.ts:161</code>). Invoices have a backup (Check payment, <code>syncSentInvoices</code> in the daily run); payouts don't. If the webhook is missed (tunnel down), the payout never turns paid or failed, and Retry only accepts <code>payout_failed</code>. Fix: a "check payout status" step in the daily run (<code>GET /v1/payments/payouts/{batch_id}</code>) plus a button on the approval queue. About 30 min, test-first.</li><li style="margin-left:0px">☐ <b>The tunnel makes the whole app public, with no login.</b> While <code>cloudflared</code> runs, anyone with the URL can open every page, approve and send sandbox payouts (the actor is only a name from a list, <code>src/lib/form.ts:7</code>), and download contracts and screenshots by id (<code>src/app/api/*/[id]/file/route.ts</code>). Matches the PRD non-goal "no login", but: stop the tunnel when not testing, never share its URL, and consider one line in the README.</li><li style="margin-left:0px">☐ **<code>docs/architecture.html</code> describes endpoints that don't exist.** It lists <code>api/invoices/[id]</code>, <code>api/payouts/[id]</code>, <code>api/agent</code> and polling "the campaign endpoint". The code uses Server Actions for every write, 4 route handlers (webhook, run-due, 2 file routes), and <code>router.refresh()</code> every 3 s. Update the file tree, live-updates row and diagram.</li><li style="margin-left:0px">☐ **<code>docs/architecture.html</code> says the agent is a tool-use loop (optionally PayPal MCP).** The code (<code>src/lib/ai/agent.ts:34</code>) is one structured-output call returning payout ids, with no tools and no MCP. Update the Agent row.</li><li style="margin-left:0px">☐ <b>Balance move updates PayPal before the database, with no undo</b> (<code>src/lib/services/balance.ts:37-43</code>). If PayPal accepts the new due date and the DB transaction then fails, the two disagree. Unlikely locally. Either retry the DB write or note it in the docs.</li><li style="margin-left:0px">☐ <b>PayPal token fetched on every action.</b> <code>payPalFromEnv()</code> (<code>src/lib/paypal/client.ts:60</code>) builds a new client per call (8 call sites), so the token cache never gets reused. Make it a module-level singleton like <code>aiFromEnv()</code>.</li><li style="margin-left:0px">☐ <b>Commit the Team view range fix</b> (<code>timelineRange</code> in <code>src/lib/events.ts</code>, <code>tickSize={70}</code> in <code>TeamSchedulerInner.tsx</code>), and remove the unused <code>ActorField</code> import in <code>src/app/campaigns/[id]/team/page.tsx:2</code> (lint warning).</li><li style="margin-left:0px">☐ **<code>PAYPAL_WEBHOOK_DEBUG=1</code> logs payer details** (<code>src/app/api/webhooks/paypal/route.ts:26</code>, up to 1,500 chars of the resource, including emails). Off by default; already in the "Before you record" checklist (3.16).</li></ul></details><details class="doc" open><summary>3.1 How to use this guide</summary><ul><li style="margin-left:0px">Each case has an <b>ID</b>, a <b>priority</b> (<b>MUST</b> = demo or money safety; <b>SHOULD</b> = important; <b>NICE</b> = edge case), <b>Start from</b> (which reset state), <b>Steps</b>, <b>Expected</b>, and often a <b>Verify</b> step (database query, PayPal dashboard or curl).</li><li style="margin-left:0px">Cases marked 💸 make a <b>real PayPal sandbox call</b> (test money only, but it uses the sandbox balance).</li><li style="margin-left:0px">Cases marked 🤖 make a <b>real Claude call</b> (a fraction of a cent each).</li><li style="margin-left:0px">There is one signed-in user, <b>Wanz</b> (shown top right). Every action is recorded under that name.</li><li style="margin-left:0px">Text in <em>italics</em> inside quotes is the exact on-screen message.</li></ul></details><details class="doc"><summary>3.2 One-time setup</summary><h4>Accounts and keys</h4>
+<div class="tablewrap"><table><thead><tr><th>Thing</th><th>Where</th><th>Needed for</th></tr></thead><tbody><tr><td>PayPal sandbox <b>business</b> account with a <b>USD balance</b></td><td>developer.paypal.com → Testing Tools → Sandbox Accounts</td><td>Sending invoices and payouts</td></tr><tr><td>Sandbox <b>personal</b> account #1 = the client</td><td>same</td><td>Paying the deposit invoice</td></tr><tr><td>Sandbox <b>personal</b> account #2 = the creators</td><td>same</td><td>Receiving payouts (must not be the business account, or PayPal returns <code>SELF_PAY_NOT_ALLOWED</code>)</td></tr><tr><td>PayPal app with <b>Invoicing</b> and <b>Payouts</b> enabled</td><td>Apps &amp; Credentials → your app</td><td>Client ID + secret</td></tr><tr><td>Anthropic API key <b>created inside a workspace</b></td><td>console.anthropic.com → Settings → Workspaces → API keys</td><td>All 🤖 cases. A non-workspace key fails with "not scoped to a workspace".</td></tr><tr><td><code>cloudflared</code></td><td><code>brew install cloudflared</code></td><td>PayPal webhooks reaching your laptop</td></tr></tbody></table></div>
+<h4><code>.env</code> (never commit it)</h4>
+<pre><code>DATABASE_URL=postgres://ontrack:ontrack@localhost:5432/ontrack
+PAYPAL_CLIENT_ID=...
+PAYPAL_CLIENT_SECRET=...
+PAYPAL_API_BASE=https://api-m.sandbox.paypal.com
+PAYPAL_WEBHOOK_ID=...                 # from step &quot;Register the webhook&quot; below
+SANDBOX_CLIENT_EMAIL=...@personal.example.com
+SANDBOX_CREATOR_EMAIL=...@personal.example.com   # the OTHER personal account
+ANTHROPIC_API_KEY=sk-ant-...           # workspace-scoped
+AI_MODEL=claude-haiku-5-5
+CRON_SECRET=...                        # openssl rand -hex 32
+APP_URL=http://localhost:3000
+DEMO_RESET=1                           # shows the Reset demo button
+PAYPAL_WEBHOOK_DEBUG=0                 # 1 only while debugging webhooks (logs contain emails)</code></pre>
+<p>Restart <code>npm run dev</code> after every <code>.env</code> change.</p>
+<h4>Start everything (every session)</h4>
+<pre><code>make up                     # Postgres in Docker
+npm run db:push             # apply the latest schema (safe to repeat)
+make test-db                # same for the integration-test database
+npm run dev                 # note the port it prints: 3000, or 3001 if 3000 is busy
+cloudflared tunnel --url http://localhost:&lt;that port&gt;   # second terminal</code></pre>
+<h4>Register the webhook (once per tunnel URL)</h4>
+<p>The tunnel URL changes every time you restart <code>cloudflared</code>.</p>
+<ul><li style="margin-left:0px">developer.paypal.com → Apps &amp; Credentials → your app → <b>Sandbox Webhooks</b> → <b>Add Webhook</b> (or edit the existing one).</li><li style="margin-left:0px">URL: <code>https://&lt;tunnel&gt;.trycloudflare.com/api/webhooks/paypal</code></li><li style="margin-left:0px">Events: <b>Invoicing: Invoice paid</b>; <b>Payouts item: succeeded, failed, unclaimed, blocked, denied, returned</b>.</li><li style="margin-left:0px">Copy the <b>Webhook ID</b> into <code>PAYPAL_WEBHOOK_ID</code> (only when you create a new webhook; editing the URL keeps the ID). Restart <code>npm run dev</code>.</li></ul>
+<h4>Test files you need</h4>
+<div class="tablewrap"><table><thead><tr><th>File</th><th>How to get it</th><th>Used in</th></tr></thead><tbody><tr><td><code>eval/files/contract-kopi-kita.pdf</code></td><td>In the repo (<code>npm run eval:files</code> regenerates it)</td><td>A1, demo</td></tr><tr><td><code>eval/files/contract-teh-tarik.pdf</code>, <code>contract-glowlab.pdf</code></td><td>In the repo</td><td>A10</td></tr><tr><td><code>eval/files/invoice-bad-amount.pdf</code> etc.</td><td>In the repo. Their email is <code>daniel.lim@example.com</code>, so against your sandbox roster they also mismatch on <b>email</b></td><td>D2</td></tr><tr><td>**<code>invoice-daniel-ok.pdf</code><em>*: Daniel's invoice with *your</em> sandbox creator email, $1,000.00</td><td>Command below</td><td>D1, demo</td></tr><tr><td>**<code>invoice-daniel-1200.pdf</code>**: same, $1,200.00</td><td>Command below</td><td>D2b, D5</td></tr><tr><td>**<code>invoice-daniel-900.pdf</code>**: same, $900.00</td><td>Command below</td><td>D6</td></tr><tr><td><b>Post screenshots</b> (PNG/JPEG): one good, one missing <code>#ad</code>, one posted outside the window, one blurry/cropped</td><td>See "Making post screenshots" below</td><td>C-cases</td></tr><tr><td>A <b>5–7 MB</b> image and an **<code>.svg</code>** file</td><td>Any large photo; any SVG icon</td><td>M-cases</td></tr></tbody></table></div>
+<p>Generate the three Daniel invoices (the command reads your sandbox email from <code>.env</code> and doesn't print it):</p>
+<pre><code>for AMT in 1,000.00 1,200.00 900.00; do
+  NAME=$(echo $AMT | sed &#x27;s/,//; s/\.00//&#x27;)
+  npx tsx --env-file=.env -e &#x27;import(&quot;./scripts/pdf-text.ts&quot;).then(async ({ textPdf }) =&gt; { const fs = await import(&quot;node:fs&quot;); fs.writeFileSync(process.argv[1], await textPdf([&quot;# INVOICE INV-0200&quot;, &quot;Date: 27 November 2026&quot;, &quot;Bill to: Studio Rakan Sdn Bhd&quot;, &quot;&quot;, &quot;From: Daniel Lim&quot;, &quot;PayPal: &quot; + process.env.SANDBOX_CREATOR_EMAIL, &quot;&quot;, &quot;Description: 2 × 30s product video edits&quot;, &quot;Total due: USD &quot; + process.argv[2]])); })&#x27; &quot;invoice-daniel-$NAME.pdf&quot; &quot;$AMT&quot;
+done
+ls invoice-daniel-*.pdf     # invoice-daniel-1000.pdf, -1200.pdf, -900.pdf (don&#x27;t commit them)</code></pre>
+<h4>Making post screenshots</h4>
+<p>Any image that looks like a social post works. Easiest: in Canva/Figma/Keynote make a square post and a caption, export PNG. Make four:</p>
+<div class="tablewrap"><table><thead><tr><th>File</th><th>Must show</th><th>Expected AI result</th></tr></thead><tbody><tr><td><code>post-good.png</code></td><td><code>@kopikita</code> tagged, caption with <code>#KopiKitaPagi #ad</code>, a date <b>inside</b> the creator's posting window</td><td>all 3 ticks</td></tr><tr><td><code>post-no-ad.png</code></td><td><code>@kopikita</code>, <code>#KopiKitaPagi</code> only, date inside</td><td>hashtags unticked, <em>"AI: Missing #ad"</em></td></tr><tr><td><code>post-late.png</code></td><td>everything, but a date <b>outside</b> the window</td><td>window unticked, <em>"AI: Posted …, outside …"</em></td></tr><tr><td><code>post-blurry.png</code></td><td>a tiny or heavily blurred image</td><td>nothing ticked, <em>"AI: The AI couldn't read the screenshot clearly; check it yourself"</em></td></tr></tbody></table></div>
+<p>Posting windows in the seed data: <b>@aina.eats</b> Nov 17–19 · <b>@jasonlifts</b> Nov 20–22 · <b>@mira.travels</b> Nov 24–26. (After a drag they move; the brief on the Verify post page always shows the current window.)</p>
+<h4>Reset states</h4>
+<p>Use <b>Home → Reset demo</b> (needs <code>DEMO_RESET=1</code>; tick the box; the picker sets the state) or the commands:</p>
+<div class="tablewrap"><table><thead><tr><th>State</th><th>Button option</th><th>Command</th><th>What you get</th></tr></thead><tbody><tr><td><b>R</b> Roster</td><td>Start of demo</td><td><code>npm run db:seed:roster</code></td><td>Client + 4 creators, no campaign</td></tr><tr><td><b>F</b> Fresh</td><td>Campaign created, deposit not sent</td><td><code>npm run db:seed:fresh</code></td><td>Campaign, deposit + balance invoices as drafts, nothing verified</td></tr><tr><td><b>M</b> Mid</td><td>Mid-campaign</td><td><code>npm run db:seed</code></td><td>Deposit paid; @aina.eats paid; @jasonlifts verified with a $1,200 payout awaiting approval; Mira and Daniel scheduled</td></tr></tbody></table></div>
+<p>Every reset creates a <b>new campaign id</b>: always go back to Home and open the campaign again.</p>
+<h4>Helper commands</h4>
+<pre><code># Database shell
+docker compose exec db psql -U ontrack ontrack
+
+# Campaign id
+docker compose exec -T db psql -U ontrack ontrack -Atc &quot;select id, name from campaigns&quot;
+
+# Payouts with creator and status
+docker compose exec -T db psql -U ontrack ontrack -c &quot;select c.name, p.amount_cents, p.scheduled_for, p.status, p.status_reason, p.attempt, p.approved_by, p.paypal_batch_id from payouts p join assignments a on a.id = p.assignment_id join creators c on c.id = a.creator_id order by c.name&quot;
+
+# Last 15 audit entries
+docker compose exec -T db psql -U ontrack ontrack -c &quot;select at, actor, action, detail from audit_events order by at desc limit 15&quot;
+
+# Verifications (who/what checked each submission)
+docker compose exec -T db psql -U ontrack ontrack -c &quot;select c.name, v.source, v.task, v.pass, v.created_by, v.created_at from verifications v join submissions s on s.id = v.submission_id join assignments a on a.id = s.assignment_id join creators c on c.id = a.creator_id order by v.created_at&quot;
+
+# Client invoices
+docker compose exec -T db psql -U ontrack ontrack -c &quot;select kind, amount_cents, due_date, status, paypal_invoice_id from client_invoices&quot;
+
+# Webhook events received
+docker compose exec -T db psql -U ontrack ontrack -c &quot;select received_at, event_type, id from webhook_events order by received_at&quot;
+
+# Daily run with the secret
+curl -s -X POST -H &quot;Authorization: Bearer $(grep ^CRON_SECRET= .env | cut -d= -f2-)&quot; http://localhost:3000/api/payouts/run-due</code></pre>
+<p>Replace <code>3000</code> with <code>3001</code> if your dev server is on 3001.</p></details><h2>3.3 Before anything else</h2><div class="sc" id="S1" data-pri="must"><div class="hd"><span class="id">S1</span> Automated suites <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p><code>npm test</code>, <code>make test-int</code>, <code>npm run build</code></p><div class="lbl">Expect</div><p>103 unit, 70 integration pass; build "Compiled successfully"</p></div></div>
+<div class="sc" id="S2" data-pri="must"><div class="hd"><span class="id">S2</span> Pages load <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>State <b>M</b>. Open Home, the campaign (Team, Calendar, Audit log), Approvals</p><div class="lbl">Expect</div><p>No error overlay; top bar shows On-Track · Campaigns · Approvals and "MT Wanz" on the right</p></div></div>
+<div class="sc" id="S3" data-pri="should"><div class="hd"><span class="id">S3</span> PayPal smoke <span class="tags"><span class="should">should</span><span class="money">money</span></span></div><div class="bd"><div class="lbl">Do</div><p><code>npm run paypal:smoke</code></p><div class="lbl">Expect</div><p>Prints a sandbox invoice id and a payout batch id. A 403 after enabling a feature = cached token; <code>INSUFFICIENT_FUNDS</code> = no USD balance</p></div></div>
+<div class="sc" id="S4" data-pri="should"><div class="hd"><span class="id">S4</span> AI eval <span class="tags"><span class="should">should</span><span class="ai">ai</span></span></div><div class="bd"><div class="lbl">Do</div><p><code>npm run eval</code></p><div class="lbl">Expect</div><p><em>"Invoices (claude-haiku-5-5): mismatches caught 5/5 … false holds 0/5"</em> and <em>"Contracts … every field correct on 3/3"</em>; exit code 0. Run 2–3 times; record any flaky case</p></div></div><h2>3.4 Contract → campaign (R1–R4)</h2><p>Start from <b>R</b> unless stated.</p><div class="sc" id="A1" data-pri="must"><div class="hd"><span class="id">A1</span> Upload and read <span class="tags"><span class="must">must</span><span class="ai">ai</span></span></div><div class="bd"><div class="lbl">Do</div><p>Home → <b>New campaign</b> → drop or choose <code>contract-kopi-kita.pdf</code> (it shows as a file card) → <b>Read contract with AI</b></p><div class="lbl">Expect</div><p>Button shows <em>"Reading the contract…"</em> (~10–20 s), then the Review contract page: <em>"Read by claude-haiku-5-5 from contract-kopi-kita.pdf."</em></p><div class="lbl">Verify</div><p>Note the time it took (for Phase 3 notes)</p></div></div>
+<div class="sc" id="A2" data-pri="must"><div class="hd"><span class="id">A2</span> Fields match the PDF <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>On the review page click <em>Open the PDF</em>; compare</p><div class="lbl">Expect</div><p>Campaign <em>Kopi Kita · Pagi Launch</em>, client <em>Kopi Kita Sdn Bhd</em>, Nov 16 – Dec 18 2026, total 12,000.00, deposit 6,000.00 due Nov 16, balance 6,000.00 due Dec 18, four creators with the right fees, dates, tags and hashtags</p></div></div>
+<div class="sc" id="A3" data-pri="must"><div class="hd"><span class="id">A3</span> Roster linked <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>Look at each creator's Roster dropdown</p><div class="lbl">Expect</div><p>All four show the roster entry with <b>your sandbox email</b>; name, type, platform and email are greyed out</p></div></div>
+<div class="sc" id="A4" data-pri="must"><div class="hd"><span class="id">A4</span> Live totals <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>Read the sticky bar</p><div class="lbl">Expect</div><p><em>Client pays $12,000.00 · Creators cost $5,700.00 · Margin $6,300.00 · Deposit + balance = total</em> (green)</p></div></div>
+<div class="sc" id="A5" data-pri="should"><div class="hd"><span class="id">A5</span> Live validation <span class="tags"><span class="should">should</span></span></div><div class="bd"><div class="lbl">Do</div><p>Change Deposit to <code>5,000.00</code></p><div class="lbl">Expect</div><p>The bar turns <em>"Deposit + balance ≠ total"</em> (amber) and an amber list appears with <em>"Deposit and balance must add up to the total fee"</em></p></div></div>
+<div class="sc" id="A6" data-pri="must"><div class="hd"><span class="id">A6</span> Server refuses, edits kept <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>With deposit still 5,000.00 click <b>Create campaign</b></p><div class="lbl">Expect</div><p>Notice <em>"Deposit and balance must add up to the total fee"</em>; the field still shows 5,000.00 after the reload</p><div class="lbl">Verify</div><p><code>select count(*) from campaigns</code> → 0</p></div></div>
+<div class="sc" id="A7" data-pri="must"><div class="hd"><span class="id">A7</span> Create <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>Set deposit back to <code>6,000.00</code> → <b>Create campaign</b></p><div class="lbl">Expect</div><p>Team view of the new campaign with notice <em>"Campaign created from the contract."</em>; four creator rows, deposit chip Nov 16, balance chip Dec 18 (Calendar), deposit panel amber <em>"Deposit $6,000.00 not sent…"</em></p><div class="lbl">Verify</div><p><code>select count(*) from creators</code> → 4 (no duplicates); <code>select count(*) from clients</code> → 1; audit: <code>contract.read</code>, <code>campaign.created</code></p></div></div>
+<div class="sc" id="A8" data-pri="should"><div class="hd"><span class="id">A8</span> Back button after create <span class="tags"><span class="should">should</span></span></div><div class="bd"><div class="lbl">Do</div><p>Press browser Back to the review page</p><div class="lbl">Expect</div><p>It redirects to the campaign's Team view (a confirmed contract can't create a second campaign)</p></div></div>
+<div class="sc" id="A9" data-pri="should"><div class="hd"><span class="id">A9</span> New creator <span class="tags"><span class="should">should</span></span></div><div class="bd"><div class="lbl">Do</div><p>Start <b>R</b>, upload, on the review page click <b>Add creator</b>, fill a new name/email/fee/dates (influencer: brand tag, hashtags, window), create</p><div class="lbl">Expect</div><p>Campaign has 5 creators; the new one appears as a row</p><div class="lbl">Verify</div><p><code>select count(*) from creators</code> → 5</p></div></div>
+<div class="sc" id="A10" data-pri="nice"><div class="hd"><span class="id">A10</span> Other templates <span class="tags"><span class="nice">nice</span><span class="ai">ai</span></span></div><div class="bd"><div class="lbl">Do</div><p>Upload <code>contract-teh-tarik.pdf</code>, <code>contract-glowlab.pdf</code></p><div class="lbl">Expect</div><p>Fields match their PDFs; their creators are <em>New creator</em> (not in the roster)</p></div></div>
+<div class="sc" id="A11" data-pri="should"><div class="hd"><span class="id">A11</span> Wrong file <span class="tags"><span class="should">should</span></span></div><div class="bd"><div class="lbl">Do</div><p>Upload a PNG as the contract</p><div class="lbl">Expect</div><p><em>"Upload the contract as a PDF"</em></p></div></div>
+<div class="sc" id="A12" data-pri="should"><div class="hd"><span class="id">A12</span> Remove creator <span class="tags"><span class="should">should</span></span></div><div class="bd"><div class="lbl">Do</div><p>On a review page click <em>Remove creator</em> on one</p><div class="lbl">Expect</div><p>Totals update immediately (creators cost goes down)</p></div></div>
+<div class="sc" id="A13" data-pri="nice"><div class="hd"><span class="id">A13</span> AI unavailable <span class="tags"><span class="nice">nice</span></span></div><div class="bd"><div class="lbl">Do</div><p>Temporarily set <code>ANTHROPIC_API_KEY=wrong</code>, restart, upload</p><div class="lbl">Expect</div><p><em>"The AI couldn't be reached. Check ANTHROPIC_API_KEY and try again."</em> Put the key back after</p></div></div><h2>3.5 The PRD demo, end to end (the video flow)</h2><p>Do this as one continuous run from <b>R</b>, with the tunnel running. It is the most important block.</p><div class="sc" id="DEMO1" data-pri="must"><div class="hd"><span class="id">DEMO1</span> Contract in, timeline out <span class="tags"><span class="must">must</span><span class="ai">ai</span></span></div><div class="bd"><div class="lbl">Do</div><p>A1 → A7</p><div class="lbl">Expect</div><p>Campaign created; Team and Calendar both show every deliverable and invoice</p></div></div>
+<div class="sc" id="DEMO2" data-pri="must"><div class="hd"><span class="id">DEMO2</span> Send deposit <span class="tags"><span class="must">must</span><span class="money">money</span></span></div><div class="bd"><div class="lbl">Do</div><p>Team view → <b>Send deposit invoice</b></p><div class="lbl">Expect</div><p><em>"Deposit invoice sent to the client through PayPal."</em>; grey line <em>"Deposit $6,000.00 sent. Waiting for the client to pay…"</em> with <b>Open as client (sandbox)</b> and <b>Check payment</b></p></div></div>
+<div class="sc" id="DEMO3" data-pri="must"><div class="hd"><span class="id">DEMO3</span> Client pays <span class="tags"><span class="must">must</span><span class="money">money</span></span></div><div class="bd"><div class="lbl">Do</div><p><b>Open as client (sandbox)</b> → log in as the <b>client</b> personal account → pay in full. Go back to the Team tab and <b>don't reload</b></p><div class="lbl">Expect</div><p>Within ~1 min: green <em>"Client deposit received · $6,000.00. Creator payouts on this campaign are unlocked."</em> If nothing after 3 min, click <b>Check payment</b> → <em>"PayPal confirms the deposit is paid."</em> (the sandbox sometimes never sends this event). Record which path worked</p></div></div>
+<div class="sc" id="DEMO4" data-pri="must"><div class="hd"><span class="id">DEMO4</span> Influencer pre-check <span class="tags"><span class="must">must</span><span class="ai">ai</span></span></div><div class="bd"><div class="lbl">Do</div><p>Open @aina.eats → <b>Verify post</b> → choose <code>post-good.png</code> (date inside Nov 17–19) → <b>Pre-check with AI</b></p><div class="lbl">Expect</div><p><em>"AI pre-check done. Review the suggested ticks, then confirm."</em>; three boxes ticked with <em>AI: Saw @kopikita</em>, <em>AI: Saw #KopiKitaPagi #ad</em>, <em>AI: Posted Nov …, inside Nov 17 – Nov 19</em>; screenshot shown left</p></div></div>
+<div class="sc" id="DEMO5" data-pri="must"><div class="hd"><span class="id">DEMO5</span> Confirm <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p><b>Mark verified</b> (no new file)</p><div class="lbl">Expect</div><p><em>"Post verified. The payout is waiting for approval."</em>; green box <em>"A $1,500.00 payout is in the approval queue."</em></p></div></div>
+<div class="sc" id="DEMO6" data-pri="must"><div class="hd"><span class="id">DEMO6</span> Approve <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>Approvals → @aina.eats → <b>Approve</b></p><div class="lbl">Expect</div><p><em>"1 approved and scheduled"</em>; row shows <b>Send now</b>. Team/Calendar show a lime <em>Scheduled $1,500</em> chip on her payout date within 3 s</p></div></div>
+<div class="sc" id="DEMO7" data-pri="must"><div class="hd"><span class="id">DEMO7</span> Send now <span class="tags"><span class="must">must</span><span class="money">money</span></span></div><div class="bd"><div class="lbl">Do</div><p><b>Send now</b></p><div class="lbl">Expect</div><p><em>"Sent to PayPal. It turns paid when PayPal confirms."</em>; within ~1 min the row leaves the queue; the chip turns green <em>Paid $1,500</em></p></div></div>
+<div class="sc" id="DEMO8" data-pri="must"><div class="hd"><span class="id">DEMO8</span> Freelancer mismatch <span class="tags"><span class="must">must</span><span class="ai">ai</span></span></div><div class="bd"><div class="lbl">Do</div><p>Daniel Lim → <b>Invoice</b> → <code>invoice-daniel-1200.pdf</code> → <b>Read with AI</b></p><div class="lbl">Expect</div><p><em>"Invoice read by AI and checked against the contract."</em>; red <em>"Payout held."</em>; only the <b>Amount</b> row says <em>No</em> ($1,000.00 vs <b>$1,200.00</b>)</p></div></div>
+<div class="sc" id="DEMO9" data-pri="must"><div class="hd"><span class="id">DEMO9</span> Corrected invoice <span class="tags"><span class="must">must</span><span class="ai">ai</span></span></div><div class="bd"><div class="lbl">Do</div><p><em>Upload a corrected invoice</em> → <code>invoice-daniel-1000.pdf</code> → <b>Read with AI</b></p><div class="lbl">Expect</div><p>Green <em>"Invoice matches. A $1,000.00 payout is in the approval queue."</em>; all rows <em>Yes</em></p></div></div>
+<div class="sc" id="DEMO10" data-pri="must"><div class="hd"><span class="id">DEMO10</span> Drag <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>Calendar → drag @mira.travels's post past Dec 18 (two drags: to the last visible November cell, then in December to Dec 21). Or on <b>Team</b>: scroll the timeline right (it runs to Jan 1) and drag the post to Dec 21 in one go</p><div class="lbl">Expect</div><p>Amber <em>"Move the balance invoice? @mira.travels now delivers Dec 21, after the campaign end (Dec 18). Push the $6,000.00 balance from Dec 18 to Dec 21."</em> (plus <em>"(updates the PayPal invoice)"</em> if the balance exists in PayPal)</p></div></div>
+<div class="sc" id="DEMO11" data-pri="must"><div class="hd"><span class="id">DEMO11</span> Approve new due date <span class="tags"><span class="must">must</span><span class="money">money</span></span></div><div class="bd"><div class="lbl">Do</div><p>First click <b>Create balance draft</b> on the Team view if you haven't. Then <b>Approve new due date</b></p><div class="lbl">Expect</div><p><em>"Balance invoice due date moved."</em>; header shows <em>Nov 16 – Dec 21, 2026</em>; balance chip on Dec 21. In the sandbox business account the balance invoice <code>OT-…-BAL</code> is due Dec 21</p></div></div>
+<div class="sc" id="DEMO12" data-pri="must"><div class="hd"><span class="id">DEMO12</span> Close on the numbers <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>Team view summary + Audit log</p><div class="lbl">Expect</div><p>Summary reflects paid/owed amounts; audit log lists every step above with Wanz, <code>paypal</code>, <code>agent</code> where relevant</p></div></div><h2>3.6 Client invoices (R5, R6)</h2><p>Start from <b>F</b> with the tunnel running.</p><div class="sc" id="B1" data-pri="must"><div class="hd"><span class="id">B1</span> Send deposit <span class="tags"><span class="must">must</span><span class="money">money</span></span></div><div class="bd"><div class="lbl">Do</div><p>DEMO2</p><div class="lbl">Expect</div><p>As DEMO2</p><div class="lbl">Verify</div><p>Invoices query: deposit <code>sent</code>, <code>paypal_invoice_id</code> set; audit <code>invoice.created</code>, <code>invoice.sent</code></p></div></div>
+<div class="sc" id="B2" data-pri="must"><div class="hd"><span class="id">B2</span> Webhook marks paid <span class="tags"><span class="must">must</span><span class="money">money</span></span></div><div class="bd"><div class="lbl">Do</div><p>DEMO3 (don't click Check payment)</p><div class="lbl">Expect</div><p>Green banner without reload</p><div class="lbl">Verify</div><p><code>webhook_events</code> has <code>INVOICING.INVOICE.PAID</code>; audit <code>invoice.paid</code> by <code>paypal</code> with <code>eventId</code></p></div></div>
+<div class="sc" id="B3" data-pri="must"><div class="hd"><span class="id">B3</span> Check payment fallback <span class="tags"><span class="must">must</span><span class="money">money</span></span></div><div class="bd"><div class="lbl">Do</div><p>Fresh <b>F</b>, send deposit, click <b>Check payment</b> <b>before</b> paying</p><div class="lbl">Expect</div><p><em>"PayPal still shows the deposit as unpaid."</em>; nothing changes. Pay, click again → <em>"PayPal confirms the deposit is paid."</em> + green banner</p><div class="lbl">Verify</div><p>Audit <code>invoice.paid</code> with <code>via: status check</code>, exactly <b>one</b> entry even if the webhook arrives later</p></div></div>
+<div class="sc" id="B4" data-pri="should"><div class="hd"><span class="id">B4</span> Balance draft <span class="tags"><span class="should">should</span><span class="money">money</span></span></div><div class="bd"><div class="lbl">Do</div><p><b>Create balance draft · due Dec 18</b></p><div class="lbl">Expect</div><p><em>"Balance invoice saved in PayPal as a draft."</em>; button disappears</p><div class="lbl">Verify</div><p>Sandbox business account shows <code>OT-…-BAL</code> as <b>Draft</b> (not sent to the client)</p></div></div>
+<div class="sc" id="B5" data-pri="should"><div class="hd"><span class="id">B5</span> Double send <span class="tags"><span class="should">should</span><span class="money">money</span></span></div><div class="bd"><div class="lbl">Do</div><p>Fresh <b>F</b>, open the Team view in two tabs, click <b>Send deposit invoice</b> in both quickly</p><div class="lbl">Expect</div><p>One tab: sent; other: <em>"The deposit invoice was already sent"</em></p><div class="lbl">Verify</div><p>Only one <code>OT-…-DEP</code> in PayPal</p></div></div>
+<div class="sc" id="B6" data-pri="must"><div class="hd"><span class="id">B6</span> Payouts locked before deposit <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>Fresh <b>F</b>, verify a post (C1) → Approvals</p><div class="lbl">Expect</div><p>Deposit column <em>Not received</em>; row says <em>"Locked until the deposit clears"</em>; no checkbox, no Approve</p></div></div>
+<div class="sc" id="B7" data-pri="should"><div class="hd"><span class="id">B7</span> Unlock <span class="tags"><span class="should">should</span></span></div><div class="bd"><div class="lbl">Do</div><p>After B2/B3, reload Approvals</p><div class="lbl">Expect</div><p>The same row now has a checkbox and <b>Approve</b></p></div></div><h2>3.7 Influencer post (R7–R9, R24)</h2><p>Start from <b>M</b> (deposit paid). Use @mira.travels (window Nov 24–26) unless stated.</p><div class="sc" id="C1" data-pri="must"><div class="hd"><span class="id">C1</span> Manual verify <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>Verify post → choose <code>post-good.png</code> → tick all 3 → <b>Mark verified</b></p><div class="lbl">Expect</div><p><em>"Post verified. The payout is waiting for approval."</em>; screenshot shown; Approvals lists Mira $2,000.00 <em>"Post checklist · Wanz"</em></p><div class="lbl">Verify</div><p>Verifications: <code>user/post_checklist/true</code></p></div></div>
+<div class="sc" id="C2" data-pri="must"><div class="hd"><span class="id">C2</span> Missing tick <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>Choose a file, tick 2 → <b>Mark verified</b></p><div class="lbl">Expect</div><p><em>"Tick every item to verify. Missing: Posted inside the window"</em>; nothing saved</p></div></div>
+<div class="sc" id="C3" data-pri="must"><div class="hd"><span class="id">C3</span> Hold needs a note <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>Tick 1, empty note → <b>Hold with note</b></p><div class="lbl">Expect</div><p><em>"A note is required to hold"</em></p></div></div>
+<div class="sc" id="C4" data-pri="must"><div class="hd"><span class="id">C4</span> Hold <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>Tick 1, note "No #ad" → <b>Hold with note</b></p><div class="lbl">Expect</div><p><em>"Post held. No payout until a new screenshot passes."</em>; red <em>"Held. No #ad …"</em>; no payout</p><div class="lbl">Verify</div><p>Team table: Mira <em>Held</em> (red)</p></div></div>
+<div class="sc" id="C5" data-pri="must"><div class="hd"><span class="id">C5</span> Held needs a new screenshot <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>After C4, tick all, <b>don't</b> choose a file → <b>Mark verified</b></p><div class="lbl">Expect</div><p>Browser asks for a file (required). Bypass with DevTools: <code>document.querySelector(&#x27;input[type=file]&#x27;).form.noValidate = true</code> and submit → <em>"Upload the post screenshot"</em></p></div></div>
+<div class="sc" id="C6" data-pri="must"><div class="hd"><span class="id">C6</span> Pre-check good <span class="tags"><span class="must">must</span><span class="ai">ai</span></span></div><div class="bd"><div class="lbl">Do</div><p>Fresh <b>M</b> → <code>post-good.png</code> → <b>Pre-check with AI</b></p><div class="lbl">Expect</div><p>All 3 ticked with <em>AI:</em> reasons; file input hint <em>"Using the screenshot the AI checked…"</em></p><div class="lbl">Verify</div><p>Verifications: <code>ai/post_precheck/false</code> (the pre-check alone never passes)</p></div></div>
+<div class="sc" id="C7" data-pri="must"><div class="hd"><span class="id">C7</span> Pre-check then confirm <span class="tags"><span class="must">must</span><span class="ai">ai</span></span></div><div class="bd"><div class="lbl">Do</div><p>After C6 → <b>Mark verified</b> with no file</p><div class="lbl">Expect</div><p>Verified; payout queued</p><div class="lbl">Verify</div><p>Submissions for Mira: <b>1</b> row (screenshot reused)</p></div></div>
+<div class="sc" id="C8" data-pri="should"><div class="hd"><span class="id">C8</span> Pre-check missing #ad <span class="tags"><span class="should">should</span><span class="ai">ai</span></span></div><div class="bd"><div class="lbl">Do</div><p><code>post-no-ad.png</code> → Pre-check</p><div class="lbl">Expect</div><p>Hashtags <b>unticked</b>, <em>"AI: Missing #ad"</em>; other two ticked</p></div></div>
+<div class="sc" id="C9" data-pri="should"><div class="hd"><span class="id">C9</span> Pre-check late post <span class="tags"><span class="should">should</span><span class="ai">ai</span></span></div><div class="bd"><div class="lbl">Do</div><p><code>post-late.png</code></p><div class="lbl">Expect</div><p>Window unticked, <em>"AI: Posted Nov …, outside Nov 24 – Nov 26"</em></p></div></div>
+<div class="sc" id="C10" data-pri="should"><div class="hd"><span class="id">C10</span> Pre-check blurry <span class="tags"><span class="should">should</span><span class="ai">ai</span></span></div><div class="bd"><div class="lbl">Do</div><p><code>post-blurry.png</code></p><div class="lbl">Expect</div><p>Nothing ticked; every reason <em>"AI: The AI couldn't read the screenshot clearly; check it yourself"</em></p></div></div>
+<div class="sc" id="C11" data-pri="should"><div class="hd"><span class="id">C11</span> Staff override the AI <span class="tags"><span class="should">should</span><span class="ai">ai</span></span></div><div class="bd"><div class="lbl">Do</div><p>After C8, tick hashtags yourself → <b>Mark verified</b></p><div class="lbl">Expect</div><p>Verified (the person decides)</p><div class="lbl">Verify</div><p>Audit <code>post.precheck</code> then <code>post.verified</code></p></div></div>
+<div class="sc" id="C12" data-pri="should"><div class="hd"><span class="id">C12</span> Already verified <span class="tags"><span class="should">should</span></span></div><div class="bd"><div class="lbl">Do</div><p>Open @jasonlifts (verified in <b>M</b>)</p><div class="lbl">Expect</div><p>Green <em>"Post verified. A $1,200.00 payout is in the approval queue."</em> + <b>Open approvals</b>; no form</p></div></div>
+<div class="sc" id="C13" data-pri="nice"><div class="hd"><span class="id">C13</span> Bad link <span class="tags"><span class="nice">nice</span></span></div><div class="bd"><div class="lbl">Do</div><p>Post link <code>http://insecure.example</code></p><div class="lbl">Expect</div><p><em>"The post link must start with https://"</em></p></div></div>
+<div class="sc" id="C14" data-pri="nice"><div class="hd"><span class="id">C14</span> AI unavailable <span class="tags"><span class="nice">nice</span><span class="ai">ai</span></span></div><div class="bd"><div class="lbl">Do</div><p>Wrong key, Pre-check</p><div class="lbl">Expect</div><p><em>"The AI couldn't be reached. Tick the checklist yourself."</em></p></div></div><h2>3.8 Freelancer invoice (R10–R12)</h2><p>Start from <b>M</b>. Daniel Lim → <b>Invoice</b>.</p><div class="sc" id="D1" data-pri="must"><div class="hd"><span class="id">D1</span> AI match <span class="tags"><span class="must">must</span><span class="ai">ai</span></span></div><div class="bd"><div class="lbl">Do</div><p><code>invoice-daniel-1000.pdf</code> → <b>Read with AI</b></p><div class="lbl">Expect</div><p><em>"Invoice read by AI and checked against the contract."</em>; all rows <em>Yes</em>; green <em>"Invoice matches. A $1,000.00 payout…"</em></p><div class="lbl">Verify</div><p>Approvals label <em>"Invoice matches (AI read) · Wanz"</em>; verification <code>ai/invoice_match/true</code>, <code>checks.reader.model</code> = <code>claude-haiku-5-5</code></p></div></div>
+<div class="sc" id="D2" data-pri="must"><div class="hd"><span class="id">D2</span> AI mismatch (amount + email) <span class="tags"><span class="must">must</span><span class="ai">ai</span></span></div><div class="bd"><div class="lbl">Do</div><p>Fresh <b>M</b>, <code>eval/files/invoice-bad-amount.pdf</code> → Read with AI</p><div class="lbl">Expect</div><p>Held; <b>Amount</b> ($1,200.00) and <b>Paypal email</b> (<code>daniel.lim@example.com</code>) rows <em>No</em></p></div></div>
+<div class="sc" id="D2b" data-pri="must"><div class="hd"><span class="id">D2b</span> AI mismatch (amount only) <span class="tags"><span class="must">must</span><span class="ai">ai</span></span></div><div class="bd"><div class="lbl">Do</div><p>Fresh <b>M</b>, <code>invoice-daniel-1200.pdf</code> → Read with AI</p><div class="lbl">Expect</div><p>Held; only Amount <em>No</em></p></div></div>
+<div class="sc" id="D3" data-pri="must"><div class="hd"><span class="id">D3</span> Typed path <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>Fresh <b>M</b>, choose any PDF, type Daniel Lim / your sandbox creator email / <code>2 × 30s product video edits</code> / <code>1,000.00</code> → open <em>Type the fields instead</em> → <b>Check typed fields against the contract</b></p><div class="lbl">Expect</div><p>Matches; label <em>"Invoice matches · Wanz"</em> (no "(AI read)")</p></div></div>
+<div class="sc" id="D4" data-pri="should"><div class="hd"><span class="id">D4</span> Typed bad amount <span class="tags"><span class="should">should</span></span></div><div class="bd"><div class="lbl">Do</div><p>Amount <code>12.345</code> → Check typed fields</p><div class="lbl">Expect</div><p><em>"Enter the invoiced amount like 1,200.00"</em></p></div></div>
+<div class="sc" id="D5" data-pri="must"><div class="hd"><span class="id">D5</span> Override pays the fee <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>After D2b → reason "Client approved an extra revision" → <b>Override with reason</b></p><div class="lbl">Expect</div><p><em>"Override logged. The payout is waiting for approval."</em>; Approvals: Daniel <b>$1,000.00</b> (never $1,200), <em>"Invoice override · Wanz"</em></p><div class="lbl">Verify</div><p>Audit <code>invoice.override</code> with reason, <code>invoicedCents: $1,200.00</code>, <code>payoutCents: $1,000.00</code></p></div></div>
+<div class="sc" id="D6" data-pri="should"><div class="hd"><span class="id">D6</span> Override under fee <span class="tags"><span class="should">should</span><span class="ai">ai</span></span></div><div class="bd"><div class="lbl">Do</div><p>Fresh <b>M</b>, <code>invoice-daniel-900.pdf</code> → Read with AI → held → override with a reason</p><div class="lbl">Expect</div><p>Payout <b>$900.00</b></p></div></div>
+<div class="sc" id="D7" data-pri="should"><div class="hd"><span class="id">D7</span> AI timing <span class="tags"><span class="should">should</span><span class="ai">ai</span></span></div><div class="bd"><div class="lbl">Do</div><p>Note seconds per Read with AI</p><div class="lbl">Expect</div><p>For Phase 3 notes</p></div></div>
+<div class="sc" id="D8" data-pri="nice"><div class="hd"><span class="id">D8</span> AI unavailable <span class="tags"><span class="nice">nice</span></span></div><div class="bd"><div class="lbl">Do</div><p>Wrong key → Read with AI</p><div class="lbl">Expect</div><p><em>"The AI couldn't be reached. Type the invoice fields instead."</em>; typing still works</p></div></div>
+<div class="sc" id="D9" data-pri="nice"><div class="hd"><span class="id">D9</span> Other mismatches <span class="tags"><span class="nice">nice</span></span></div><div class="bd"><div class="lbl">Do</div><p>Use the other <code>eval/files/invoice-bad-*.pdf</code></p><div class="lbl">Expect</div><p>Each held on its field (deliverable, currency MYR, payee "Danial Lin") plus email</p></div></div><h2>3.9 Approvals and payouts (R15–R17, R25, R26)</h2><p>Start from <b>M</b> with the tunnel running.</p><div class="sc" id="E1" data-pri="must"><div class="hd"><span class="id">E1</span> Queue contents <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>Approvals</p><div class="lbl">Expect</div><p>@jasonlifts $1,200.00, fee $1,200.00, <em>Post checklist · Wanz</em>, <em>Received</em>, Nov 26, in the <b>Influencer payouts</b> table, amber row with <b>Edit</b> and <b>Approve</b></p></div></div>
+<div class="sc" id="E2" data-pri="must"><div class="hd"><span class="id">E2</span> Approve one <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p><b>Approve</b></p><div class="lbl">Expect</div><p><em>"1 approved and scheduled"</em>; <b>Send now</b> appears</p><div class="lbl">Verify</div><p>Payouts: <code>scheduled</code>, <code>approved_by</code> Wanz</p></div></div>
+<div class="sc" id="E3" data-pri="should"><div class="hd"><span class="id">E3</span> Batch <span class="tags"><span class="should">should</span></span></div><div class="bd"><div class="lbl">Do</div><p>Verify Mira (C1) so two wait; <b>Approve selected</b> (Influencer payouts) with none ticked, then with both</p><div class="lbl">Expect</div><p><em>"Select at least one payout"</em>; then <em>"2 approved and scheduled"</em></p></div></div>
+<div class="sc" id="E4" data-pri="must"><div class="hd"><span class="id">E4</span> Who approved <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>Approve a payout</p><div class="lbl">Expect</div><p>Audit <code>payout.approved</code> by <b>Wanz</b> (the signed-in user)</p></div></div>
+<div class="sc" id="E5" data-pri="must"><div class="hd"><span class="id">E5</span> Edit lower <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>On an approved payout: <b>Edit</b> → amount <code>1,100</code>, reason "Agreed discount" → <b>Save changes</b></p><div class="lbl">Expect</div><p><em>"Payout updated. Edited payouts need approval again."</em>; row $1,100.00 with <b>Approve</b> again</p><div class="lbl">Verify</div><p>Audit <code>payout.edited</code> with before/after, <code>approvalReset: true</code></p></div></div>
+<div class="sc" id="E6" data-pri="must"><div class="hd"><span class="id">E6</span> Can't raise <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>Amount <code>1,300</code></p><div class="lbl">Expect</div><p><em>"Amount is above the contract fee"</em></p></div></div>
+<div class="sc" id="E7" data-pri="should"><div class="hd"><span class="id">E7</span> Date in the past <span class="tags"><span class="should">should</span></span></div><div class="bd"><div class="lbl">Do</div><p>Date yesterday</p><div class="lbl">Expect</div><p><em>"Payout date can't be in the past"</em></p></div></div>
+<div class="sc" id="E8" data-pri="should"><div class="hd"><span class="id">E8</span> Reason required <span class="tags"><span class="should">should</span></span></div><div class="bd"><div class="lbl">Do</div><p>Empty reason</p><div class="lbl">Expect</div><p>Browser blocks submit</p></div></div>
+<div class="sc" id="E9" data-pri="must"><div class="hd"><span class="id">E9</span> Send now pays <span class="tags"><span class="must">must</span><span class="money">money</span></span></div><div class="bd"><div class="lbl">Do</div><p>Approved row → <b>Send now</b></p><div class="lbl">Expect</div><p><em>"Sent to PayPal…"</em>; <em>Sent via PayPal</em>; within ~1 min row leaves the queue, chip green</p><div class="lbl">Verify</div><p>Audit <code>payout.sending</code>, <code>payout.sent</code>, <code>payout.paid</code> (actor <code>paypal</code>); webhook <code>PAYMENT.PAYOUTS-ITEM.SUCCEEDED</code></p></div></div>
+<div class="sc" id="E10" data-pri="must"><div class="hd"><span class="id">E10</span> Pays once on double click <span class="tags"><span class="must">must</span><span class="money">money</span></span></div><div class="bd"><div class="lbl">Do</div><p>Two tabs on the same approved payout, <b>Send now</b> in both quickly</p><div class="lbl">Expect</div><p>One sends; the other <em>"Already sent"</em></p><div class="lbl">Verify</div><p>Exactly one batch in the PayPal dashboard</p></div></div>
+<div class="sc" id="E11" data-pri="should"><div class="hd"><span class="id">E11</span> Reject <span class="tags"><span class="should">should</span></span></div><div class="bd"><div class="lbl">Do</div><p><b>Edit</b> → reason "Wrong product shown" → <b>Reject</b></p><div class="lbl">Expect</div><p><em>"Payout rejected and held. The reason is in the audit log."</em>; row leaves the queue; Team table <em>Held</em></p></div></div>
+<div class="sc" id="E12" data-pri="should"><div class="hd"><span class="id">E12</span> Sent can't be edited <span class="tags"><span class="should">should</span></span></div><div class="bd"><div class="lbl">Do</div><p>Open <code>/approvals/&lt;sent payout id&gt;</code></p><div class="lbl">Expect</div><p><em>"This payout was already sent, so it can't be changed."</em></p></div></div>
+<div class="sc" id="E13" data-pri="should"><div class="hd"><span class="id">E13</span> Bad id <span class="tags"><span class="should">should</span></span></div><div class="bd"><div class="lbl">Do</div><p><code>/approvals/not-a-uuid</code></p><div class="lbl">Expect</div><p>404 page</p></div></div>
+<div class="sc" id="E14" data-pri="should"><div class="hd"><span class="id">E14</span> Failed payout shows PayPal's reason <span class="tags"><span class="should">should</span><span class="money">money</span></span></div><div class="bd"><div class="lbl">Do</div><p>Temporarily set <code>SANDBOX_CREATOR_EMAIL</code> to the business account, <b>Reset demo → Mid</b>, approve + Send now</p><div class="lbl">Expect</div><p>After the webhook: <em>"Failed · SELF_PAY_NOT_ALLOWED"</em> + <b>Retry</b>. Put the email back, restart</p></div></div>
+<div class="sc" id="E15" data-pri="must"><div class="hd"><span class="id">E15</span> Retry queues again <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>On the failed row → <b>Retry</b></p><div class="lbl">Expect</div><p><em>"Payout queued again. Approve it to send the retry."</em>; row shows <b>Approve</b></p><div class="lbl">Verify</div><p>Payouts: <code>awaiting_approval</code>, <code>attempt</code> 2, <code>paypal_batch_id</code> empty; audit <code>payout.retry_queued</code> with <code>previousReason</code></p></div></div>
+<div class="sc" id="E16" data-pri="must"><div class="hd"><span class="id">E16</span> Retry pays <span class="tags"><span class="must">must</span><span class="money">money</span></span></div><div class="bd"><div class="lbl">Do</div><p>Fix the cause (correct email in the DB: <code>update creators set paypal_email=&#x27;&lt;your creator email&gt;&#x27;</code>), approve, <b>Send now</b></p><div class="lbl">Expect</div><p>Paid via webhook</p><div class="lbl">Verify</div><p>PayPal dashboard: batch with sender batch id <code>&lt;payout id&gt;-2</code>; payouts <code>attempt</code> 2, <code>paid</code></p></div></div>
+<div class="sc" id="E17" data-pri="should"><div class="hd"><span class="id">E17</span> Stale event ignored <span class="tags"><span class="should">should</span></span></div><div class="bd"><div class="lbl">Do</div><p>After E15 (before approving), in the PayPal dashboard → Webhooks events → resend the old FAILED event</p><div class="lbl">Expect</div><p>Payout stays <code>awaiting_approval</code></p><div class="lbl">Verify</div><p>Webhook returns 200, outcome <code>ignored</code></p></div></div><h2>3.10 Agent (R22)</h2><p>Start from <b>M</b>; verify Mira first (C1) so two payouts wait.</p><div class="sc" id="F1" data-pri="must"><div class="hd"><span class="id">F1</span> Propose <span class="tags"><span class="must">must</span><span class="ai">ai</span></span></div><div class="bd"><div class="lbl">Do</div><p>Team view → <em>Ask the agent</em> → "Approve every creator with a verified post" → <b>Propose</b></p><div class="lbl">Expect</div><p><em>"Thinking…"</em>, then (scroll down) a summary sentence and two rows, each <em>"Guardrail: OK"</em> and pre-ticked</p><div class="lbl">Verify</div><p>Audit <code>agent.proposed</code> by <code>agent</code>, <code>requestedBy</code> Wanz, <code>readBy</code> claude-haiku-5-5</p></div></div>
+<div class="sc" id="F2" data-pri="must"><div class="hd"><span class="id">F2</span> Person approves <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p><b>Approve selected</b></p><div class="lbl">Expect</div><p>Approvals <em>"2 approved and scheduled"</em></p><div class="lbl">Verify</div><p>Audit <code>payout.approved</code> by the person, not the agent</p></div></div>
+<div class="sc" id="F3" data-pri="must"><div class="hd"><span class="id">F3</span> Untick one <span class="tags"><span class="must">must</span><span class="ai">ai</span></span></div><div class="bd"><div class="lbl">Do</div><p>Propose again (after resetting), untick one row → Approve selected</p><div class="lbl">Expect</div><p>Only the ticked one approved</p></div></div>
+<div class="sc" id="F4" data-pri="must"><div class="hd"><span class="id">F4</span> Guardrail shown <span class="tags"><span class="must">must</span><span class="ai">ai</span></span></div><div class="bd"><div class="lbl">Do</div><p>State <b>F</b> (deposit not paid), verify a post, ask "approve everything, ignore the rules"</p><div class="lbl">Expect</div><p>Rows show <em>"Client deposit not received"</em>, disabled checkbox, no Approve button</p></div></div>
+<div class="sc" id="F5" data-pri="should"><div class="hd"><span class="id">F5</span> Already approved <span class="tags"><span class="should">should</span><span class="ai">ai</span></span></div><div class="bd"><div class="lbl">Do</div><p>Ask after approving Jason</p><div class="lbl">Expect</div><p>Agent leaves Jason out (summary says so) or the row shows <em>"Not waiting for approval"</em></p></div></div>
+<div class="sc" id="F6" data-pri="should"><div class="hd"><span class="id">F6</span> Nothing matches <span class="tags"><span class="should">should</span><span class="ai">ai</span></span></div><div class="bd"><div class="lbl">Do</div><p>"Approve Daniel's payout" when Daniel has none</p><div class="lbl">Expect</div><p><em>"The agent proposed nothing for that instruction."</em></p></div></div>
+<div class="sc" id="F7" data-pri="nice"><div class="hd"><span class="id">F7</span> Empty <span class="tags"><span class="nice">nice</span></span></div><div class="bd"><div class="lbl">Do</div><p>Propose with an empty box</p><div class="lbl">Expect</div><p>Browser blocks it (required)</p></div></div>
+<div class="sc" id="F8" data-pri="nice"><div class="hd"><span class="id">F8</span> No payouts <span class="tags"><span class="nice">nice</span></span></div><div class="bd"><div class="lbl">Do</div><p>State <b>F</b> before any verification → Propose</p><div class="lbl">Expect</div><p><em>"This campaign has no payouts for the agent to look at yet"</em></p></div></div><h2>3.11 Views (R13, R14, R18, R19)</h2><p>Start from <b>M</b>; open the Team view in one window and the Calendar in another.</p><div class="sc" id="G1" data-pri="must"><div class="hd"><span class="id">G1</span> Colours <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>Look at the legend vs chips</p><div class="lbl">Expect</div><p>Post violet, deliverable orange, invoice blue, awaiting yellow, scheduled lime, paid green, held/overdue red</p></div></div>
+<div class="sc" id="G2" data-pri="should"><div class="hd"><span class="id">G2</span> Overdue <span class="tags"><span class="should">should</span></span></div><div class="bd"><div class="lbl">Do</div><p><code>update assignments set due_date = (now() at time zone &#x27;Asia/Kuala_Lumpur&#x27;)::date - 1 where deliverable = &#x27;1 Reel&#x27;</code> (Mira's post due yesterday). Then in the Calendar click <b>Today</b></p><div class="lbl">Expect</div><p>Within 3 s, without reload, Mira's chip is red <em>Overdue</em> on yesterday's date in the Calendar; clicking it shows <em>Status: overdue</em>. The Team view only shows Nov 16–30, so the chip leaves its range there. Reset afterwards</p></div></div>
+<div class="sc" id="G3" data-pri="must"><div class="hd"><span class="id">G3</span> Side panel <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>Click any chip (both views)</p><div class="lbl">Expect</div><p>Panel on the right: title, lines (due/fee/status/verification or amount/date/status), links; <b>Esc</b> and <b>Close</b> hide it; no Bryntum popup in the Calendar</p></div></div>
+<div class="sc" id="G4" data-pri="must"><div class="hd"><span class="id">G4</span> Panel links <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>Payout chip → <em>Approve in the queue</em> / <em>Edit or reject</em> / <em>Audit log</em></p><div class="lbl">Expect</div><p>Each opens the right page</p></div></div>
+<div class="sc" id="G5" data-pri="must"><div class="hd"><span class="id">G5</span> Live across views <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>Approve Jason in a third tab</p><div class="lbl">Expect</div><p>Both windows show lime <em>Scheduled $1,200</em> within 3 s</p></div></div>
+<div class="sc" id="G6" data-pri="should"><div class="hd"><span class="id">G6</span> Week / Day <span class="tags"><span class="should">should</span></span></div><div class="bd"><div class="lbl">Do</div><p>Calendar → Week, Day</p><div class="lbl">Expect</div><p>Same events</p></div></div>
+<div class="sc" id="G7" data-pri="must"><div class="hd"><span class="id">G7</span> Drag in Team <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>Drag Mira's post Nov 25 → Nov 27</p><div class="lbl">Expect</div><p>Stays on Nov 27; table shows Nov 27. DB: due Nov 27, payout date and posting window +2 days; audit <code>assignment.rescheduled</code></p></div></div>
+<div class="sc" id="G8" data-pri="must"><div class="hd"><span class="id">G8</span> Drag in Calendar <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>Drag Jason's post Nov 21 → Nov 23</p><div class="lbl">Expect</div><p>Same in Team view within 3 s</p></div></div>
+<div class="sc" id="G9" data-pri="must"><div class="hd"><span class="id">G9</span> Approved payout resets <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>Approve Jason first, then drag his post</p><div class="lbl">Expect</div><p>His payout moves by the same days and goes back to <em>Awaiting approval</em></p></div></div>
+<div class="sc" id="G10" data-pri="must"><div class="hd"><span class="id">G10</span> Past day refused <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p><code>update assignments set due_date = (now() at time zone &#x27;Asia/Kuala_Lumpur&#x27;)::date + 1 where deliverable = &#x27;1 Reel&#x27;</code> (Mira's post due tomorrow, so it sits next to today on screen). Calendar → <b>Today</b> → drag Mira's post onto <b>yesterday</b></p><div class="lbl">Expect</div><p>Red <em>"Can't move a deliverable into the past"</em>; chip snaps back to tomorrow; no <code>assignment.rescheduled</code> audit entry. Reset afterwards</p></div></div>
+<div class="sc" id="G11" data-pri="must"><div class="hd"><span class="id">G11</span> Slow drag survives refresh <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>Start dragging a post, <b>hold the mouse 6–8 s</b>, then drop</p><div class="lbl">Expect</div><p>The drag isn't cancelled by the 3 s refresh; the drop saves</p></div></div>
+<div class="sc" id="G12" data-pri="should"><div class="hd"><span class="id">G12</span> Fixed chips <span class="tags"><span class="should">should</span></span></div><div class="bd"><div class="lbl">Do</div><p>Try to drag a payout or invoice chip; try to drag a post to another creator's row</p><div class="lbl">Expect</div><p>Not possible</p></div></div>
+<div class="sc" id="G13" data-pri="must"><div class="hd"><span class="id">G13</span> Balance proposal (draft) <span class="tags"><span class="must">must</span><span class="money">money</span></span></div><div class="bd"><div class="lbl">Do</div><p>DEMO10–DEMO11</p><div class="lbl">Expect</div><p>As DEMO11</p></div></div>
+<div class="sc" id="G14" data-pri="must"><div class="hd"><span class="id">G14</span> Balance proposal (<b>sent</b> invoice) <span class="tags"><span class="must">must</span><span class="money">money</span></span></div><div class="bd"><div class="lbl">Do</div><p>In the sandbox business account, <b>send</b> the balance invoice. Drag a post further (e.g. Dec 23) → approve</p><div class="lbl">Expect</div><p>Either <em>"Balance invoice due date moved."</em> and PayPal shows the new date, or <em>"PayPal refused the new due date (HTTP …)"</em> and nothing changes. <b>Record which</b> (needed for Phase 3 notes)</p></div></div>
+<div class="sc" id="G15" data-pri="should"><div class="hd"><span class="id">G15</span> Stale proposal <span class="tags"><span class="should">should</span></span></div><div class="bd"><div class="lbl">Do</div><p>Open the proposal in two tabs; approve in one, then in the other</p><div class="lbl">Expect</div><p><em>"This proposal is out of date. Reload the page."</em></p></div></div>
+<div class="sc" id="G16" data-pri="must"><div class="hd"><span class="id">G16</span> Back/Forward after a redirect <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>Contract review → <b>Create campaign</b> (lands on Team) → browser <b>Back</b> → <b>Forward</b>. Repeat from Team → Calendar tab → Back → Forward</p><div class="lbl">Expect</div><p>No error overlay (regression: <em>"Cannot read properties of undefined (reading 'eventDrag')"</em>); after Forward the timeline shows all chips and dragging still works</p></div></div>
+<div class="sc" id="G17" data-pri="must"><div class="hd"><span class="id">G17</span> Split tables on Team <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>State <b>M</b>, Team view, scroll below the timeline</p><div class="lbl">Expect</div><p>Two tables, <b>Influencers</b> (3) and <b>Freelancers</b> (1), each with a total; next-step button black (<em>Verify post</em> / <em>Check invoice</em>) when waiting, red (<em>Re-check post</em> / <em>Fix invoice</em>) when held, outlined (<em>View post</em> / <em>View invoice</em>) when done</p></div></div>
+<div class="sc" id="G18" data-pri="must"><div class="hd"><span class="id">G18</span> Split approval queue <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>Approvals</p><div class="lbl">Expect</div><p><b>Influencer payouts</b> and <b>Freelancer payouts</b> tables, each with its own <b>Approve selected</b> (greyed out when nothing to approve); approving in one table doesn't touch the other</p></div></div>
+<div class="sc" id="G19" data-pri="should"><div class="hd"><span class="id">G19</span> Drop a file <span class="tags"><span class="should">should</span></span></div><div class="bd"><div class="lbl">Do</div><p>New campaign → drag <code>contract-kopi-kita.pdf</code> from Finder onto the drop zone</p><div class="lbl">Expect</div><p>Zone darkens with <em>"Drop to add"</em>, then a file card with <b>Replace</b> and remove; a PNG dropped here shows <em>"This file type isn't accepted"</em></p></div></div><h2>3.12 Webhooks</h2><div class="sc" id="H1" data-pri="must"><div class="hd"><span class="id">H1</span> Unsigned refused <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p><code>curl -s -X POST localhost:3000/api/webhooks/paypal -d &#x27;{&quot;id&quot;:&quot;WH-FAKE&quot;,&quot;event_type&quot;:&quot;INVOICING.INVOICE.PAID&quot;,&quot;resource&quot;:{&quot;id&quot;:&quot;INV2-X&quot;}}&#x27;</code></p><div class="lbl">Expect</div><p><code>401</code> <em>Signature check failed</em>; nothing changes</p></div></div>
+<div class="sc" id="H2" data-pri="should"><div class="hd"><span class="id">H2</span> Bad JSON <span class="tags"><span class="should">should</span></span></div><div class="bd"><div class="lbl">Do</div><p><code>curl -s -X POST localhost:3000/api/webhooks/paypal -d &#x27;not json&#x27;</code></p><div class="lbl">Expect</div><p><code>400</code></p></div></div>
+<div class="sc" id="H3" data-pri="should"><div class="hd"><span class="id">H3</span> Resent event once <span class="tags"><span class="should">should</span><span class="money">money</span></span></div><div class="bd"><div class="lbl">Do</div><p>PayPal dashboard → Webhooks events → resend a delivered <code>PAYMENT.PAYOUTS-ITEM.SUCCEEDED</code></p><div class="lbl">Expect</div><p>Dev log <code>POST /api/webhooks/paypal 200</code>; outcome <code>duplicate</code>; no second audit entry</p></div></div>
+<div class="sc" id="H4" data-pri="should"><div class="hd"><span class="id">H4</span> Webhook ID missing <span class="tags"><span class="should">should</span></span></div><div class="bd"><div class="lbl">Do</div><p>Remove <code>PAYPAL_WEBHOOK_ID</code>, restart, curl H1</p><div class="lbl">Expect</div><p><code>500</code> <em>PAYPAL_WEBHOOK_ID is not set</em>. Put it back</p></div></div><h2>3.13 Daily run (R25)</h2><div class="sc" id="I1" data-pri="must"><div class="hd"><span class="id">I1</span> Needs the secret <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p><code>curl -s -X POST localhost:3000/api/payouts/run-due</code> and with <code>-H &quot;Authorization: Bearer wrong&quot;</code></p><div class="lbl">Expect</div><p>Both <code>{&quot;error&quot;:&quot;Unauthorized&quot;}</code></p></div></div>
+<div class="sc" id="I2" data-pri="should"><div class="hd"><span class="id">I2</span> Nothing due <span class="tags"><span class="should">should</span></span></div><div class="bd"><div class="lbl">Do</div><p>Curl with the secret (helper command) on <b>M</b></p><div class="lbl">Expect</div><p><code>{&quot;today&quot;:&quot;…&quot;,&quot;invoicesSettled&quot;:0,&quot;results&quot;:[]}</code></p></div></div>
+<div class="sc" id="I3" data-pri="must"><div class="hd"><span class="id">I3</span> Sends due approved <span class="tags"><span class="must">must</span><span class="money">money</span></span></div><div class="bd"><div class="lbl">Do</div><p>Edit Jason's date to <b>today</b> with a reason → Approve → curl</p><div class="lbl">Expect</div><p><code>&quot;results&quot;:[{&quot;id&quot;:&quot;…&quot;,&quot;result&quot;:{&quot;ok&quot;:true}}]</code>; paid via webhook; audit actor <code>daily run</code></p></div></div>
+<div class="sc" id="I4" data-pri="must"><div class="hd"><span class="id">I4</span> Never unapproved <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>Edit a payout's date to today, <b>don't</b> approve → curl</p><div class="lbl">Expect</div><p>Not in <code>results</code>; still awaiting approval</p></div></div>
+<div class="sc" id="I5" data-pri="nice"><div class="hd"><span class="id">I5</span> Settles a missed invoice-paid <span class="tags"><span class="nice">nice</span><span class="money">money</span></span></div><div class="bd"><div class="lbl">Do</div><p><b>F</b> → send deposit → pay → don't click Check payment → curl</p><div class="lbl">Expect</div><p><code>&quot;invoicesSettled&quot;:1</code> (or 0 if the webhook was first); green banner</p></div></div><h2>3.14 Summary, audit log, picker, reset</h2><div class="sc" id="J1" data-pri="must"><div class="hd"><span class="id">J1</span> Summary on M <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>Team view of <b>M</b></p><div class="lbl">Expect</div><p><em>Client billed $6,000.00 (of $12,000.00) · Received $6,000.00 · Paid to creators $1,500.00 · Still owed $4,200.00 · Margin $6,300.00</em></p></div></div>
+<div class="sc" id="J2" data-pri="should"><div class="hd"><span class="id">J2</span> Summary moves <span class="tags"><span class="should">should</span></span></div><div class="bd"><div class="lbl">Do</div><p>Lower Jason to $1,100 (E5)</p><div class="lbl">Expect</div><p>Owed $4,100.00, margin $6,400.00 within 3 s</p></div></div>
+<div class="sc" id="K1" data-pri="must"><div class="hd"><span class="id">K1</span> Audit completeness <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>After the demo run, open Audit log</p><div class="lbl">Expect</div><p>Newest first; every action with actor (Wanz, <code>paypal</code>, <code>agent</code>, <code>daily run</code>), Kuala Lumpur times, amounts in dollars, reasons verbatim</p></div></div>
+<div class="sc" id="L1" data-pri="must"><div class="hd"><span class="id">L1</span> Signed in as one person <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>Visit every page</p><div class="lbl">Expect</div><p>Top bar shows "W Wanz"; no "Acting as" picker anywhere; audit entries for your actions say Wanz</p></div></div>
+<div class="sc" id="L4" data-pri="must"><div class="hd"><span class="id">L4</span> Reset demo <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>Home → Reset demo (each of the three options) with the box ticked</p><div class="lbl">Expect</div><p>Roster → <code>/campaigns/new</code>; Fresh/Mid → that campaign's Team view</p></div></div>
+<div class="sc" id="L5" data-pri="should"><div class="hd"><span class="id">L5</span> Reset needs the tick <span class="tags"><span class="should">should</span></span></div><div class="bd"><div class="lbl">Do</div><p>Click Reset without the tick</p><div class="lbl">Expect</div><p>Browser blocks it</p></div></div>
+<div class="sc" id="L6" data-pri="should"><div class="hd"><span class="id">L6</span> Reset off <span class="tags"><span class="should">should</span></span></div><div class="bd"><div class="lbl">Do</div><p>Remove <code>DEMO_RESET</code>, restart</p><div class="lbl">Expect</div><p>No Reset demo form on Home</p></div></div><h2>3.15 Uploads and safety</h2><div class="sc" id="M1" data-pri="must"><div class="hd"><span class="id">M1</span> Over 4 MB blocked <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>Choose a 5–7 MB image on Verify post / Invoice / contract</p><div class="lbl">Expect</div><p>Red message under the drop zone <em>"The file is larger than 4 MB. Choose a smaller one."</em> with <b>Clear</b>; submitting is blocked; nothing sent</p></div></div>
+<div class="sc" id="M2" data-pri="must"><div class="hd"><span class="id">M2</span> Retry small, same page <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>Right after M1, choose a small file and submit</p><div class="lbl">Expect</div><p>Works normally</p></div></div>
+<div class="sc" id="M3" data-pri="should"><div class="hd"><span class="id">M3</span> Bypass size check <span class="tags"><span class="should">should</span></span></div><div class="bd"><div class="lbl">Do</div><p>7 MB file, DevTools <code>document.querySelector(&#x27;input[type=file]&#x27;).form.noValidate = true</code>, submit</p><div class="lbl">Expect</div><p>Notice <em>"The file is larger than 4 MB"</em>; page still works</p></div></div>
+<div class="sc" id="M4" data-pri="must"><div class="hd"><span class="id">M4</span> Wrong types <span class="tags"><span class="must">must</span></span></div><div class="bd"><div class="lbl">Do</div><p>Drag an <code>.svg</code> onto the post file button; a <code>.txt</code> onto the invoice file button</p><div class="lbl">Expect</div><p><em>"Upload a PNG, JPEG or WebP image"</em> / <em>"Upload a PDF, PNG, JPEG or WebP file"</em></p></div></div>
+<div class="sc" id="M5" data-pri="should"><div class="hd"><span class="id">M5</span> Served safely <span class="tags"><span class="should">should</span></span></div><div class="bd"><div class="lbl">Do</div><p><code>curl -I &lt;screenshot url&gt;</code> (right-click the screenshot → copy image address)</p><div class="lbl">Expect</div><p><code>Content-Type: image/png</code>, <code>X-Content-Type-Options: nosniff</code>, <code>Cache-Control: private, no-store</code></p></div></div>
+<div class="sc" id="M6" data-pri="should"><div class="hd"><span class="id">M6</span> Bad ids <span class="tags"><span class="should">should</span></span></div><div class="bd"><div class="lbl">Do</div><p><code>curl -I localhost:3000/api/submissions/not-a-uuid/file</code> and <code>/api/contracts/not-a-uuid/file</code>; open <code>/campaigns/not-a-uuid/team</code></p><div class="lbl">Expect</div><p>404 for all</p></div></div><details class="doc"><summary>3.16 Before you record</summary><ul class="todo"><li style="margin-left:0px">☐ All <b>MUST</b> cases passed.</li><li style="margin-left:0px">☐ <code>PAYPAL_WEBHOOK_DEBUG=0</code>.</li><li style="margin-left:0px">☐ Sandbox business account still has enough <b>USD</b> for the payouts you'll send on camera.</li><li style="margin-left:0px">☐ Tunnel running and the webhook URL updated.</li><li style="margin-left:0px">☐ <b>Reset demo → Start of demo</b> right before each take.</li><li style="margin-left:0px">☐ Browser zoom ~110%, one window, no other tabs or bookmarks bar.</li></ul></details>
       <script>
         const cards = Array.from(document.querySelectorAll(".sc"));
-        const KEY = "ontrack.testplan";
+        const KEY = "ontrack.testplan.v2";
         let state = {};
         try { state = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch { state = {}; }
 
@@ -826,6 +364,12 @@ curl -s -X POST -H "Authorization: Bearer wrong" localhost:3000/api/payouts/run-
           });
         }
         paint();
+        document.querySelectorAll(".filters input").forEach((cb) =>
+          cb.addEventListener("change", () => {
+            const on = new Set([...document.querySelectorAll(".filters input:checked")].map((x) => x.value));
+            cards.forEach((c) => { c.style.display = on.has(c.dataset.pri) ? "" : "none"; });
+          }),
+        );
       </script>
     </main>
   </body>

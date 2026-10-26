@@ -228,7 +228,7 @@ stateDiagram-v2
   held --> submitted: new submission
   held --> verified: user override with reason
   verified --> awaiting_approval: payout created
-  awaiting_approval --> scheduled: Mei or Hana approves
+  awaiting_approval --> scheduled: staff member approves
   awaiting_approval --> held: rejected with reason
   awaiting_approval --> awaiting_approval: amount or date edited (R26)
   scheduled --> awaiting_approval: amount or date edited (R26)
@@ -318,7 +318,7 @@ sequenceDiagram
   else allowed so far
     Guard-->>API: needs_approval
     API-->>Mei: Payout added to approval queue
-    Mei->>API: Approve (Mei or Hana)
+    Mei->>API: Approve (signed-in staff)
     API->>API: payout.status = scheduled, scheduled_for = contract payout date
     Note over Mei,API: Calendar and Scheduler show a scheduled payout block
     Mei->>API: Send now (or daily cron on scheduled_for)

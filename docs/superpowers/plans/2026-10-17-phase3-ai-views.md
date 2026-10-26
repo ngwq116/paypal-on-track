@@ -326,7 +326,7 @@ describe("submitInvoice read by AI", () => {
     const [v] = await db.select().from(schema.verifications);
     expect(v).toMatchObject({ source: "ai", task: "invoice_match", pass: true });
     expect(v.checks).toMatchObject({ reader: { model: "claude-haiku-5-5", confidence: 0.92 } });
-    expect(await verificationLabel(assignment.id)).toBe("Invoice matches (AI read) · Mei Tan");
+    expect(await verificationLabel(assignment.id)).toBe("Invoice matches (AI read) · Wanz");
   });
   it("holds an invoice billed in another currency", async () => {
     const { assignment } = await seedAssignment({ type: "freelancer" });
@@ -515,7 +515,7 @@ In `src/components/InvoiceSection.tsx` (import `readInvoiceWithAi` with the othe
 
 Expected:
 - **Read with AI** → "Reading…" for a few seconds → "Invoice read by AI and checked against the contract." and the comparison table.
-- A $1,200 invoice → red "Payout held", Amount row "No". Approvals later shows "Invoice matches (AI read) · Mei Tan" for a matching one.
+- A $1,200 invoice → red "Payout held", Amount row "No". Approvals later shows "Invoice matches (AI read) · Wanz" for a matching one.
 - Remove `ANTHROPIC_API_KEY` temporarily, restart → "The AI couldn't be reached. Type the invoice fields instead."; typing the fields still works.
 
 - [ ] **Step 7: Commit**
@@ -1494,7 +1494,7 @@ const form = (): ContractForm => ({
     { creatorId: "", name: "Lina Ho", type: "freelancer", detail: "Photography", paypalEmail: "lina@example.com", deliverable: "10 product photos", fee: "1,500.00", dueDate: "2026-11-06", payoutDate: "2026-11-09", brandTag: "", hashtags: "", windowStart: "", windowEnd: "" },
   ],
 });
-const draft = (f = form()) => saveContractDraft({ file: pdf, form: f, model: "claude-haiku-5-5", actor: "Mei Tan" });
+const draft = (f = form()) => saveContractDraft({ file: pdf, form: f, model: "claude-haiku-5-5", actor: "Wanz" });
 const campaignCount = async () => (await db.select().from(schema.campaigns)).length;
 
 beforeEach(resetDb);
@@ -1502,7 +1502,7 @@ beforeEach(resetDb);
 describe("confirmContract", () => {
   it("creates the campaign, its assignments and both draft invoices (R3)", async () => {
     const contractId = await draft();
-    const r = await confirmContract({ contractId, form: form(), actor: "Mei Tan" });
+    const r = await confirmContract({ contractId, form: form(), actor: "Wanz" });
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     const [campaign] = await db.select().from(schema.campaigns).where(eq(schema.campaigns.id, r.campaignId));
@@ -1527,7 +1527,7 @@ describe("confirmContract", () => {
     const f = form();
     f.clientName = "client co";
     f.creators[0] = { ...f.creators[0], creatorId: creator.id };
-    await confirmContract({ contractId: await draft(f), form: f, actor: "Mei Tan" });
+    await confirmContract({ contractId: await draft(f), form: f, actor: "Wanz" });
     expect(await db.select().from(schema.clients)).toHaveLength(1);
     expect(await db.select().from(schema.creators)).toHaveLength(2); // @tester (reused) + Lina Ho (new)
   });
@@ -1535,14 +1535,14 @@ describe("confirmContract", () => {
   it("refuses invalid terms, creates nothing, and keeps the person's edits", async () => {
     const contractId = await draft();
     const f = { ...form(), depositAmount: "3,000.00" };
-    expect(await confirmContract({ contractId, form: f, actor: "Mei Tan" })).toEqual({ ok: false, errors: ["Deposit and balance must add up to the total fee"] });
+    expect(await confirmContract({ contractId, form: f, actor: "Wanz" })).toEqual({ ok: false, errors: ["Deposit and balance must add up to the total fee"] });
     expect(await campaignCount()).toBe(0);
     expect((await getContractDraft(contractId))?.extracted.depositAmount).toBe("3,000.00");
   });
 
   it("creates one campaign even when confirmed twice at the same moment", async () => {
     const contractId = await draft();
-    const results = await Promise.all([confirmContract({ contractId, form: form(), actor: "Mei Tan" }), confirmContract({ contractId, form: form(), actor: "Hana Aziz" })]);
+    const results = await Promise.all([confirmContract({ contractId, form: form(), actor: "Wanz" }), confirmContract({ contractId, form: form(), actor: "Hana Aziz" })]);
     expect(results.filter((r) => r.ok)).toHaveLength(1);
     expect(results).toContainEqual({ ok: false, errors: ["This contract already created a campaign"] });
     expect(await campaignCount()).toBe(1);
@@ -2138,7 +2138,7 @@ const input: TimelineInput = {
   today: "2026-10-20",
   client: { id: "cl", name: "Kopi Kita Sdn Bhd" },
   assignments: [
-    { id: "as1", creatorId: "cr1", creatorName: "@jasonlifts", creatorType: "influencer", deliverable: "1 TikTok video", dueDate: "2026-10-24", status: "verified", feeCents: 120000, verified: "Post checklist · Mei Tan" },
+    { id: "as1", creatorId: "cr1", creatorName: "@jasonlifts", creatorType: "influencer", deliverable: "1 TikTok video", dueDate: "2026-10-24", status: "verified", feeCents: 120000, verified: "Post checklist · Wanz" },
     { id: "as2", creatorId: "cr2", creatorName: "Daniel Lim", creatorType: "freelancer", deliverable: "2 × 30s product video edits", dueDate: "2026-10-27", status: "held", feeCents: 100000, verified: "Not verified" },
   ],
   invoices: [{ id: "inv1", kind: "deposit", amountCents: 600000, dueDate: "2026-10-16", status: "paid", paypalInvoiceId: "INV2-1" }],
@@ -2167,7 +2167,7 @@ describe("overdue and side panel", () => {
     expect(e["assignment-as1"].refId).toBe("as1");
     expect(e["assignment-as1"].panel).toEqual({
       title: "@jasonlifts · 1 TikTok video",
-      lines: ["Post due Oct 24", "Fee $1,200.00", "Status: verified", "Verification: Post checklist · Mei Tan"],
+      lines: ["Post due Oct 24", "Fee $1,200.00", "Status: verified", "Verification: Post checklist · Wanz"],
       links: [{ href: "/campaigns/cp/assignments/as1", label: "Verify post" }],
     });
     expect(e["payout-po1"].panel.links).toEqual([
@@ -2202,7 +2202,7 @@ export interface TimelineInput {
     dueDate: string;
     status: "scheduled" | "submitted" | "verified" | "held" | "paid";
     feeCents: number;
-    verified: string; // e.g. "Post checklist · Mei Tan" or "Not verified"
+    verified: string; // e.g. "Post checklist · Wanz" or "Not verified"
   }>;
   invoices: Array<{ id: string; kind: "deposit" | "balance"; amountCents: number; dueDate: string; status: "draft" | "sent" | "paid"; paypalInvoiceId: string | null }>;
   payouts: Array<{
@@ -2523,24 +2523,24 @@ const payoutRow = async (id: string) => (await db.select().from(schema.payouts).
 describe("rescheduleAssignment", () => {
   it("moves the deliverable and its payout date together, and logs it", async () => {
     const { assignment } = await seedAssignment(); // due 2026-10-24, payout 2026-10-29
-    expect(await rescheduleAssignment({ assignmentId: assignment.id, newDueDate: "2026-10-27", actor: "Mei Tan", today })).toEqual({ ok: true });
+    expect(await rescheduleAssignment({ assignmentId: assignment.id, newDueDate: "2026-10-27", actor: "Wanz", today })).toEqual({ ok: true });
     expect(await assignmentRow(assignment.id)).toMatchObject({ dueDate: "2026-10-27", payoutDate: "2026-11-01" });
     const [audit] = await db.select().from(schema.auditEvents);
-    expect(audit).toMatchObject({ action: "assignment.rescheduled", actor: "Mei Tan" });
+    expect(audit).toMatchObject({ action: "assignment.rescheduled", actor: "Wanz" });
   });
   it("moves a queued payout's date, and sends an approved payout back for approval (R26)", async () => {
-    const { assignment, payout } = await seedPayout({ status: "scheduled", approvedBy: "Mei Tan" });
+    const { assignment, payout } = await seedPayout({ status: "scheduled", approvedBy: "Wanz" });
     await rescheduleAssignment({ assignmentId: assignment.id, newDueDate: "2026-10-26", actor: "Hana Aziz", today });
     expect(await payoutRow(payout.id)).toMatchObject({ scheduledFor: "2026-10-31", status: "awaiting_approval", approvedBy: null });
   });
   it("refuses once the payout was sent", async () => {
-    const { assignment } = await seedPayout({ status: "payout_sent", approvedBy: "Mei Tan" });
-    expect(await rescheduleAssignment({ assignmentId: assignment.id, newDueDate: "2026-10-26", actor: "Mei Tan", today })).toEqual({ ok: false, reason: "The payout was already sent" });
+    const { assignment } = await seedPayout({ status: "payout_sent", approvedBy: "Wanz" });
+    expect(await rescheduleAssignment({ assignmentId: assignment.id, newDueDate: "2026-10-26", actor: "Wanz", today })).toEqual({ ok: false, reason: "The payout was already sent" });
   });
   it("refuses a past day and writes nothing for a same-day drop", async () => {
     const { assignment } = await seedAssignment();
-    expect(await rescheduleAssignment({ assignmentId: assignment.id, newDueDate: "2026-10-01", actor: "Mei Tan", today })).toEqual({ ok: false, reason: "Can't move a deliverable into the past" });
-    expect(await rescheduleAssignment({ assignmentId: assignment.id, newDueDate: "2026-10-24", actor: "Mei Tan", today })).toEqual({ ok: true });
+    expect(await rescheduleAssignment({ assignmentId: assignment.id, newDueDate: "2026-10-01", actor: "Wanz", today })).toEqual({ ok: false, reason: "Can't move a deliverable into the past" });
+    expect(await rescheduleAssignment({ assignmentId: assignment.id, newDueDate: "2026-10-24", actor: "Wanz", today })).toEqual({ ok: true });
     expect(await db.select().from(schema.auditEvents)).toHaveLength(0);
   });
 });
@@ -2866,17 +2866,17 @@ describe("approveBalanceMove", () => {
   it("only changes our records when the invoice isn't in PayPal yet", async () => {
     const { campaign } = await lateCampaign(null);
     const { pp, request } = fakePayPal();
-    expect(await approveBalanceMove(pp, { campaignId: campaign.id, newDueDate: "2026-11-23", actor: "Mei Tan" })).toEqual({ ok: true });
+    expect(await approveBalanceMove(pp, { campaignId: campaign.id, newDueDate: "2026-11-23", actor: "Wanz" })).toEqual({ ok: true });
     expect(request).not.toHaveBeenCalled();
   });
   it("changes nothing if PayPal refuses, or if the proposal is out of date", async () => {
     const { campaign } = await lateCampaign();
-    expect(await approveBalanceMove(fakePayPal(true).pp, { campaignId: campaign.id, newDueDate: "2026-11-23", actor: "Mei Tan" })).toEqual({
+    expect(await approveBalanceMove(fakePayPal(true).pp, { campaignId: campaign.id, newDueDate: "2026-11-23", actor: "Wanz" })).toEqual({
       ok: false,
       reason: "PayPal refused the new due date (HTTP 422)",
     });
     expect((await db.select().from(schema.clientInvoices))[0].dueDate).toBe("2026-11-20");
-    expect(await approveBalanceMove(fakePayPal().pp, { campaignId: campaign.id, newDueDate: "2026-11-25", actor: "Mei Tan" })).toEqual({
+    expect(await approveBalanceMove(fakePayPal().pp, { campaignId: campaign.id, newDueDate: "2026-11-25", actor: "Wanz" })).toEqual({
       ok: false,
       reason: "This proposal is out of date. Reload the page.",
     });

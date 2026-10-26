@@ -987,7 +987,7 @@ async function main() {
   ]);
 
   await db.insert(schema.payouts).values([
-    { assignmentId: a[0].id, amountCents: 150000, scheduledFor: "2026-10-23", approvedBy: "Mei Tan", approvedAt: new Date("2026-10-22T09:00:00+08:00"), status: "paid" },
+    { assignmentId: a[0].id, amountCents: 150000, scheduledFor: "2026-10-23", approvedBy: "Wanz", approvedAt: new Date("2026-10-22T09:00:00+08:00"), status: "paid" },
     { assignmentId: a[1].id, amountCents: 120000, scheduledFor: "2026-10-29", status: "awaiting_approval" },
   ]);
 

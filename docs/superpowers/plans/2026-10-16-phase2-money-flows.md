@@ -23,7 +23,7 @@
 - PayPal `sender_batch_id` and `sender_item_id` = our payout row id.
 - **Every state change writes an audit event** (`writeAudit`) inside the same transaction, with the person's name (or `paypal` / `daily run`) as actor.
 - Uploads: PNG, JPEG, WebP (and PDF for invoices), **max 4 MB**, stored in Postgres `bytea`. Never accept SVG or HTML.
-- There is no login yet. The acting person is picked from `STAFF` (`Mei Tan`, `Hana Aziz`) on each form.
+- There is no login yet. The acting person is picked from `STAFF` (`Wanz`, `Hana Aziz`) on each form.
 - Never commit `.env`. Run `git status` before every commit. `npm test && npm run build` before every commit.
 
 ## Review Focus
@@ -382,13 +382,13 @@ async function main() {
   if (!fresh) {
     const proofs = await db
       .insert(schema.submissions)
-      .values([aAina, aJason].map((a) => ({ assignmentId: a.id, kind: "post_proof" as const, fileName: "seed-placeholder.png", fileType: "image/png", file: PLACEHOLDER_PNG, submittedBy: "Mei Tan" })))
+      .values([aAina, aJason].map((a) => ({ assignmentId: a.id, kind: "post_proof" as const, fileName: "seed-placeholder.png", fileType: "image/png", file: PLACEHOLDER_PNG, submittedBy: "Wanz" })))
       .returning();
     await db.insert(schema.verifications).values(
-      proofs.map((s) => ({ submissionId: s.id, source: "user" as const, task: "post_checklist" as const, pass: true, checks: { ticked: ["brandTag", "hashtags", "window"], missing: [] }, createdBy: "Mei Tan" })),
+      proofs.map((s) => ({ submissionId: s.id, source: "user" as const, task: "post_checklist" as const, pass: true, checks: { ticked: ["brandTag", "hashtags", "window"], missing: [] }, createdBy: "Wanz" })),
     );
     await db.insert(schema.payouts).values([
-      { assignmentId: aAina.id, amountCents: 150000, scheduledFor: "2026-10-23", approvedBy: "Mei Tan", approvedAt: new Date("2026-10-22T09:00:00+08:00"), status: "paid" },
+      { assignmentId: aAina.id, amountCents: 150000, scheduledFor: "2026-10-23", approvedBy: "Wanz", approvedAt: new Date("2026-10-22T09:00:00+08:00"), status: "paid" },
       { assignmentId: aJason.id, amountCents: 120000, scheduledFor: "2026-10-29", status: "awaiting_approval" },
     ]);
   }
@@ -1059,9 +1059,9 @@ export async function seedPayout(
   if (opts.verified ?? true) {
     const [s] = await db
       .insert(schema.submissions)
-      .values({ assignmentId: base.assignment.id, kind: "post_proof", fileName: "p.png", fileType: "image/png", file: Buffer.from([1]), submittedBy: "Mei Tan" })
+      .values({ assignmentId: base.assignment.id, kind: "post_proof", fileName: "p.png", fileType: "image/png", file: Buffer.from([1]), submittedBy: "Wanz" })
       .returning();
-    await db.insert(schema.verifications).values({ submissionId: s.id, source: "user", task: "post_checklist", pass: true, createdBy: "Mei Tan" });
+    await db.insert(schema.verifications).values({ submissionId: s.id, source: "user", task: "post_checklist", pass: true, createdBy: "Wanz" });
   }
   const [payout] = await db
     .insert(schema.payouts)
@@ -1101,68 +1101,68 @@ beforeEach(resetDb);
 describe("approvePayout", () => {
   it("schedules a verified payout when the deposit has cleared, and logs who approved it", async () => {
     const { payout } = await seedPayout();
-    expect(await approvePayout(payout.id, "Mei Tan")).toEqual({ ok: true });
-    expect(await payoutRow(payout.id)).toMatchObject({ status: "scheduled", approvedBy: "Mei Tan" });
+    expect(await approvePayout(payout.id, "Wanz")).toEqual({ ok: true });
+    expect(await payoutRow(payout.id)).toMatchObject({ status: "scheduled", approvedBy: "Wanz" });
     expect(await actions()).toContain("payout.approved");
   });
   it("refuses while the client deposit has not cleared (R15)", async () => {
     const { payout } = await seedPayout({ depositCleared: false });
-    expect(await approvePayout(payout.id, "Mei Tan")).toEqual({ ok: false, reason: "Client deposit not received" });
+    expect(await approvePayout(payout.id, "Wanz")).toEqual({ ok: false, reason: "Client deposit not received" });
     expect((await payoutRow(payout.id)).status).toBe("awaiting_approval");
   });
   it("refuses work with no passing verification", async () => {
     const { payout } = await seedPayout({ verified: false });
-    expect(await approvePayout(payout.id, "Mei Tan")).toEqual({ ok: false, reason: "Work not verified" });
+    expect(await approvePayout(payout.id, "Wanz")).toEqual({ ok: false, reason: "Work not verified" });
   });
   it("treats a malformed id as not found", async () => {
-    expect(await approvePayout("not-a-uuid", "Mei Tan")).toEqual({ ok: false, reason: "Payout not found" });
+    expect(await approvePayout("not-a-uuid", "Wanz")).toEqual({ ok: false, reason: "Payout not found" });
   });
 });
 
 describe("sendPayout", () => {
   it("sends once, with the payout id as sender_batch_id, and stores the batch id", async () => {
-    const { payout } = await seedPayout({ status: "scheduled", approvedBy: "Mei Tan" });
+    const { payout } = await seedPayout({ status: "scheduled", approvedBy: "Wanz" });
     const { pp, request } = fakePayPal();
-    expect(await sendPayout(pp, payout.id, "Mei Tan")).toEqual({ ok: true });
+    expect(await sendPayout(pp, payout.id, "Wanz")).toEqual({ ok: true });
     expect(request).toHaveBeenCalledTimes(1);
     const body = request.mock.calls[0][2] as { sender_batch_header: { sender_batch_id: string } };
     expect(body.sender_batch_header.sender_batch_id).toBe(payout.id);
     expect(await payoutRow(payout.id)).toMatchObject({ status: "payout_sent", paypalBatchId: "BATCH-1" });
   });
   it("pays only once when Send now is clicked twice at the same moment", async () => {
-    const { payout } = await seedPayout({ status: "scheduled", approvedBy: "Mei Tan" });
+    const { payout } = await seedPayout({ status: "scheduled", approvedBy: "Wanz" });
     const { pp, request } = fakePayPal();
-    const results = await Promise.all([sendPayout(pp, payout.id, "Mei Tan"), sendPayout(pp, payout.id, "Hana Aziz")]);
+    const results = await Promise.all([sendPayout(pp, payout.id, "Wanz"), sendPayout(pp, payout.id, "Hana Aziz")]);
     expect(results.filter((r) => r.ok)).toHaveLength(1);
     expect(results).toContainEqual({ ok: false, reason: "Already sent" });
     expect(request).toHaveBeenCalledTimes(1);
   });
   it("re-checks the guardrail at send time: an approved payout is blocked if the deposit flag is off", async () => {
-    const { payout } = await seedPayout({ status: "scheduled", approvedBy: "Mei Tan", depositCleared: false });
+    const { payout } = await seedPayout({ status: "scheduled", approvedBy: "Wanz", depositCleared: false });
     const { pp, request } = fakePayPal();
-    expect(await sendPayout(pp, payout.id, "Mei Tan")).toEqual({ ok: false, reason: "Client deposit not received" });
+    expect(await sendPayout(pp, payout.id, "Wanz")).toEqual({ ok: false, reason: "Client deposit not received" });
     expect(request).not.toHaveBeenCalled();
   });
   it("refuses a payout nobody approved", async () => {
     const { payout } = await seedPayout();
     const { pp, request } = fakePayPal();
-    expect(await sendPayout(pp, payout.id, "Mei Tan")).toEqual({ ok: false, reason: "Not approved yet" });
+    expect(await sendPayout(pp, payout.id, "Wanz")).toEqual({ ok: false, reason: "Not approved yet" });
     expect(request).not.toHaveBeenCalled();
   });
   it("marks the payout failed with PayPal's error name when PayPal refuses it (4xx)", async () => {
-    const { payout } = await seedPayout({ status: "scheduled", approvedBy: "Mei Tan" });
+    const { payout } = await seedPayout({ status: "scheduled", approvedBy: "Wanz" });
     const { pp } = fakePayPal(async () => {
       throw new PayPalError(422, JSON.stringify({ name: "INSUFFICIENT_FUNDS" }));
     });
-    expect(await sendPayout(pp, payout.id, "Mei Tan")).toEqual({ ok: false, reason: "PayPal refused the payout: INSUFFICIENT_FUNDS" });
+    expect(await sendPayout(pp, payout.id, "Wanz")).toEqual({ ok: false, reason: "PayPal refused the payout: INSUFFICIENT_FUNDS" });
     expect(await payoutRow(payout.id)).toMatchObject({ status: "payout_failed", statusReason: "INSUFFICIENT_FUNDS" });
   });
   it("leaves the payout as sent when PayPal's answer is unknown (5xx); the webhook settles it", async () => {
-    const { payout } = await seedPayout({ status: "scheduled", approvedBy: "Mei Tan" });
+    const { payout } = await seedPayout({ status: "scheduled", approvedBy: "Wanz" });
     const { pp } = fakePayPal(async () => {
       throw new PayPalError(503, "{}");
     });
-    const r = await sendPayout(pp, payout.id, "Mei Tan");
+    const r = await sendPayout(pp, payout.id, "Wanz");
     expect(r.ok).toBe(false);
     expect((await payoutRow(payout.id)).status).toBe("payout_sent");
     expect(await actions()).toContain("payout.unconfirmed");
@@ -1171,7 +1171,7 @@ describe("sendPayout", () => {
 
 describe("editPayout", () => {
   it("lowering a scheduled payout sends it back for approval and logs before and after", async () => {
-    const { payout } = await seedPayout({ status: "scheduled", approvedBy: "Mei Tan" });
+    const { payout } = await seedPayout({ status: "scheduled", approvedBy: "Wanz" });
     const r = await editPayout({ payoutId: payout.id, amountCents: 100000, date: "2026-10-30", reason: "Agreed discount", actor: "Hana Aziz", today: "2026-10-27" });
     expect(r).toEqual({ ok: true });
     expect(await payoutRow(payout.id)).toMatchObject({ status: "awaiting_approval", approvedBy: null, amountCents: 100000, scheduledFor: "2026-10-30" });
@@ -1180,7 +1180,7 @@ describe("editPayout", () => {
   });
   it("rejects raising the amount above the contract fee", async () => {
     const { payout } = await seedPayout();
-    expect(await editPayout({ payoutId: payout.id, amountCents: 120001, date: "2026-10-30", reason: "x", actor: "Mei Tan", today: "2026-10-27" })).toEqual({
+    expect(await editPayout({ payoutId: payout.id, amountCents: 120001, date: "2026-10-30", reason: "x", actor: "Wanz", today: "2026-10-27" })).toEqual({
       ok: false,
       errors: ["Amount is above the contract fee"],
     });
@@ -1190,20 +1190,20 @@ describe("editPayout", () => {
 describe("rejectPayout", () => {
   it("holds the payout and its assignment, with the reason", async () => {
     const { payout, assignment } = await seedPayout();
-    expect(await rejectPayout(payout.id, "Mei Tan", "Wrong product shown")).toEqual({ ok: true });
+    expect(await rejectPayout(payout.id, "Wanz", "Wrong product shown")).toEqual({ ok: true });
     expect(await payoutRow(payout.id)).toMatchObject({ status: "held", statusReason: "Wrong product shown" });
     const [a] = await db.select().from(schema.assignments).where(eq(schema.assignments.id, assignment.id));
     expect(a.status).toBe("held");
   });
   it("needs a reason", async () => {
     const { payout } = await seedPayout();
-    expect(await rejectPayout(payout.id, "Mei Tan", "  ")).toEqual({ ok: false, reason: "A reason is required" });
+    expect(await rejectPayout(payout.id, "Wanz", "  ")).toEqual({ ok: false, reason: "A reason is required" });
   });
 });
 
 describe("runDuePayouts", () => {
   it("sends approved payouts whose date has arrived, and nothing else", async () => {
-    const due = await seedPayout({ status: "scheduled", approvedBy: "Mei Tan" }); // scheduled for 2026-10-29
+    const due = await seedPayout({ status: "scheduled", approvedBy: "Wanz" }); // scheduled for 2026-10-29
     await seedPayout(); // awaiting approval: never sent automatically
     const { pp, request } = fakePayPal();
     expect(await runDuePayouts(pp, "2026-10-28")).toEqual([]);
@@ -1487,7 +1487,7 @@ Follows the prototype's **Approvals** artboard: one table with Payee, Campaign, 
 Create `src/lib/staff.ts`:
 ```ts
 // No login yet: the acting person is picked on each form. Only these names can approve (R17).
-export const STAFF = ["Mei Tan", "Hana Aziz"] as const;
+export const STAFF = ["Wanz", "Hana Aziz"] as const;
 export const isStaff = (name: string): boolean => (STAFF as readonly string[]).includes(name);
 ```
 
@@ -1885,7 +1885,7 @@ In `src/app/layout.tsx`, replace the `<body>` element:
 Run: `make db-reset`, then `npm run dev`, open http://localhost:3000/approvals.
 
 Expected:
-- One row: @jasonlifts, $1,200.00, fee $1,200.00, "Post checklist · Mei Tan", deposit Received, Oct 29, **Approve**.
+- One row: @jasonlifts, $1,200.00, fee $1,200.00, "Post checklist · Wanz", deposit Received, Oct 29, **Approve**.
 - Click **Approve** → notice "1 approved and scheduled"; the row now shows **Send now** and "Edit or reject".
 - **Edit or reject** → set amount `1,300` → notice "Amount is above the contract fee". Set `1,100`, a reason, save → back on the queue, row is awaiting approval again at $1,100.00.
 - Approve again, then **Send now** → notice "Sent to PayPal…" and the row shows "Sent via PayPal". (This is a real $1,100 sandbox payout; check the batch in the PayPal developer dashboard. It stays "Sent" until Task 7's webhook marks it paid.)
@@ -1952,7 +1952,7 @@ describe("sendDepositInvoice", () => {
   it("creates, sends and stores the payer link; due date never in the past", async () => {
     const { campaign } = await withInvoices();
     const { pp, request } = fakePayPal();
-    expect(await sendDepositInvoice(pp, campaign.id, "Mei Tan", "2026-10-21")).toEqual({ ok: true });
+    expect(await sendDepositInvoice(pp, campaign.id, "Wanz", "2026-10-21")).toEqual({ ok: true });
     const create = request.mock.calls.find((c) => c[1] === "/v2/invoicing/invoices")!;
     expect(create[2]).toMatchObject({ detail: { payment_term: { due_date: "2026-10-21" } } });
     expect(request.mock.calls.some((c) => c[1] === "/v2/invoicing/invoices/INV2-NEW/send")).toBe(true);
@@ -1961,14 +1961,14 @@ describe("sendDepositInvoice", () => {
   it("won't send twice", async () => {
     const { campaign } = await withInvoices("sent");
     const { pp, request } = fakePayPal();
-    expect(await sendDepositInvoice(pp, campaign.id, "Mei Tan", "2026-10-21")).toEqual({ ok: false, reason: "The deposit invoice was already sent" });
+    expect(await sendDepositInvoice(pp, campaign.id, "Wanz", "2026-10-21")).toEqual({ ok: false, reason: "The deposit invoice was already sent" });
     expect(request).not.toHaveBeenCalled();
   });
   it("reuses an invoice PayPal already created if the send failed last time", async () => {
     const { campaign } = await withInvoices();
     await db.update(schema.clientInvoices).set({ paypalInvoiceId: "INV2-OLD" }).where(eq(schema.clientInvoices.kind, "deposit"));
     const { pp, request } = fakePayPal();
-    expect(await sendDepositInvoice(pp, campaign.id, "Mei Tan", "2026-10-21")).toEqual({ ok: true });
+    expect(await sendDepositInvoice(pp, campaign.id, "Wanz", "2026-10-21")).toEqual({ ok: true });
     expect(request.mock.calls.some((c) => c[1] === "/v2/invoicing/invoices")).toBe(false);
     expect(request.mock.calls.some((c) => c[1] === "/v2/invoicing/invoices/INV2-OLD/send")).toBe(true);
   });
@@ -1978,7 +1978,7 @@ describe("createBalanceDraft", () => {
   it("creates the balance invoice in PayPal as a draft and does not send it (R5)", async () => {
     const { campaign } = await withInvoices();
     const { pp, request } = fakePayPal();
-    expect(await createBalanceDraft(pp, campaign.id, "Mei Tan", "2026-10-21")).toEqual({ ok: true });
+    expect(await createBalanceDraft(pp, campaign.id, "Wanz", "2026-10-21")).toEqual({ ok: true });
     expect(request.mock.calls.some((c) => String(c[1]).endsWith("/send"))).toBe(false);
     expect(await invoice("balance")).toMatchObject({ status: "draft", paypalInvoiceId: "INV2-NEW" });
   });
@@ -2258,24 +2258,24 @@ describe("handlePayPalEvent", () => {
     expect(await db.select().from(schema.auditEvents)).toHaveLength(1);
   });
   it("payout succeeded: payout and assignment are paid (matched by sender_item_id)", async () => {
-    const { payout, assignment } = await seedPayout({ status: "payout_sent", approvedBy: "Mei Tan" });
+    const { payout, assignment } = await seedPayout({ status: "payout_sent", approvedBy: "Wanz" });
     await handlePayPalEvent({ id: "WH-2", event_type: "PAYMENT.PAYOUTS-ITEM.SUCCEEDED", resource: { payout_batch_id: "B", payout_item: { sender_item_id: payout.id } } });
     expect((await payoutRow(payout.id)).status).toBe("paid");
     const [a] = await db.select().from(schema.assignments).where(eq(schema.assignments.id, assignment.id));
     expect(a.status).toBe("paid");
   });
   it("matches by batch id when the item id is missing", async () => {
-    const { payout } = await seedPayout({ status: "payout_sent", approvedBy: "Mei Tan", paypalBatchId: "BATCH-9" });
+    const { payout } = await seedPayout({ status: "payout_sent", approvedBy: "Wanz", paypalBatchId: "BATCH-9" });
     expect(await handlePayPalEvent({ id: "WH-3", event_type: "PAYMENT.PAYOUTS-ITEM.SUCCEEDED", resource: { payout_batch_id: "BATCH-9" } })).toBe("processed");
     expect((await payoutRow(payout.id)).status).toBe("paid");
   });
   it("a late FAILED event does not undo a paid payout", async () => {
-    const { payout } = await seedPayout({ status: "paid", approvedBy: "Mei Tan" });
+    const { payout } = await seedPayout({ status: "paid", approvedBy: "Wanz" });
     await handlePayPalEvent({ id: "WH-4", event_type: "PAYMENT.PAYOUTS-ITEM.FAILED", resource: { payout_item: { sender_item_id: payout.id } } });
     expect((await payoutRow(payout.id)).status).toBe("paid");
   });
   it("payout unclaimed: failed with the PayPal status as the reason", async () => {
-    const { payout } = await seedPayout({ status: "payout_sent", approvedBy: "Mei Tan" });
+    const { payout } = await seedPayout({ status: "payout_sent", approvedBy: "Wanz" });
     await handlePayPalEvent({ id: "WH-5", event_type: "PAYMENT.PAYOUTS-ITEM.UNCLAIMED", resource: { payout_item: { sender_item_id: payout.id } } });
     expect(await payoutRow(payout.id)).toMatchObject({ status: "payout_failed", statusReason: "UNCLAIMED" });
   });
@@ -2449,7 +2449,7 @@ import { submitPostCheck } from "./verification";
 
 const png = { name: "post.png", type: "image/png", size: 3, bytes: Buffer.from([1, 2, 3]) };
 const ALL = ["brandTag", "hashtags", "window"];
-const base = { link: "", note: "", actor: "Mei Tan", today: "2026-10-25" };
+const base = { link: "", note: "", actor: "Wanz", today: "2026-10-25" };
 
 beforeEach(resetDb);
 
@@ -2946,7 +2946,7 @@ Add to `src/lib/services/verification.int.test.ts` (and add `overrideInvoice, su
 ```ts
 const pdf = { name: "INV-0142.pdf", type: "application/pdf", size: 3, bytes: Buffer.from([1, 2, 3]) };
 const fields = { payee: "Daniel Lim", paypalEmail: "daniel@example.com", deliverable: "2 x 30s product video edits", amount: "1,000.00" };
-const who = { actor: "Mei Tan", today: "2026-10-27" };
+const who = { actor: "Wanz", today: "2026-10-27" };
 
 describe("submitInvoice", () => {
   it("a matching invoice verifies the work and queues the contract fee (R12)", async () => {
@@ -3239,7 +3239,7 @@ In `src/app/campaigns/[id]/assignments/[assignmentId]/page.tsx`, import `Invoice
 
 Expected:
 - Enter Daniel Lim / your `SANDBOX_CREATOR_EMAIL` / `2 × 30s product video edits` / `1,200.00` with any PDF → red "Payout held", table with Amount $1,000.00 vs **$1,200.00** "No". Team view now shows Daniel's chip red ("Held").
-- **Override with reason** with an empty reason → browser blocks it; with "Client approved an extra revision" → "Override logged…", /approvals lists Daniel at **$1,000.00** with "Invoice override · Mei Tan".
+- **Override with reason** with an empty reason → browser blocks it; with "Client approved an extra revision" → "Override logged…", /approvals lists Daniel at **$1,000.00** with "Invoice override · Wanz".
 
 - [ ] **Step 7: Commit**
 

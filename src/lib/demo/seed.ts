@@ -43,22 +43,22 @@ export async function seedDemo(mode: SeedMode, emails: { creator: string; client
 
   const [campaign] = await db
     .insert(schema.campaigns)
-    .values({ clientId: client.id, name: "Kopi Kita · Pagi Launch", startDate: "2026-10-19", endDate: "2026-11-20", depositCleared: !fresh })
+    .values({ clientId: client.id, name: "Kopi Kita · Pagi Launch", startDate: "2026-11-16", endDate: "2026-12-18", depositCleared: !fresh })
     .returning();
 
   const [aAina, aJason] = await db
     .insert(schema.assignments)
     .values([
-      { campaignId: campaign.id, creatorId: aina.id, deliverable: "1 Reel + 2 Stories", feeCents: 150000, dueDate: "2026-10-21", payoutDate: "2026-10-23", brief: brief("2026-10-20", "2026-10-22"), status: fresh ? "scheduled" : "paid" },
-      { campaignId: campaign.id, creatorId: jason.id, deliverable: "1 TikTok video", feeCents: 120000, dueDate: "2026-10-24", payoutDate: "2026-10-29", brief: brief("2026-10-23", "2026-10-25"), status: fresh ? "scheduled" : "verified" },
-      { campaignId: campaign.id, creatorId: mira.id, deliverable: "1 Reel", feeCents: 200000, dueDate: "2026-10-28", payoutDate: "2026-10-30", brief: brief("2026-10-27", "2026-10-29"), status: "scheduled" },
-      { campaignId: campaign.id, creatorId: daniel.id, deliverable: "2 × 30s product video edits", feeCents: 100000, dueDate: "2026-10-27", payoutDate: "2026-10-31", brief: null, status: "scheduled" },
+      { campaignId: campaign.id, creatorId: aina.id, deliverable: "1 Reel + 2 Stories", feeCents: 150000, dueDate: "2026-11-18", payoutDate: "2026-11-20", brief: brief("2026-11-17", "2026-11-19"), status: fresh ? "scheduled" : "paid" },
+      { campaignId: campaign.id, creatorId: jason.id, deliverable: "1 TikTok video", feeCents: 120000, dueDate: "2026-11-21", payoutDate: "2026-11-26", brief: brief("2026-11-20", "2026-11-22"), status: fresh ? "scheduled" : "verified" },
+      { campaignId: campaign.id, creatorId: mira.id, deliverable: "1 Reel", feeCents: 200000, dueDate: "2026-11-25", payoutDate: "2026-11-27", brief: brief("2026-11-24", "2026-11-26"), status: "scheduled" },
+      { campaignId: campaign.id, creatorId: daniel.id, deliverable: "2 × 30s product video edits", feeCents: 100000, dueDate: "2026-11-24", payoutDate: "2026-11-28", brief: null, status: "scheduled" },
     ])
     .returning();
 
   await db.insert(schema.clientInvoices).values([
-    { campaignId: campaign.id, kind: "deposit", amountCents: 600000, dueDate: "2026-10-19", status: fresh ? "draft" : "paid" },
-    { campaignId: campaign.id, kind: "balance", amountCents: 600000, dueDate: "2026-11-20", status: "draft" },
+    { campaignId: campaign.id, kind: "deposit", amountCents: 600000, dueDate: "2026-11-16", status: fresh ? "draft" : "paid" },
+    { campaignId: campaign.id, kind: "balance", amountCents: 600000, dueDate: "2026-12-18", status: "draft" },
   ]);
 
   if (!fresh) {
@@ -70,8 +70,8 @@ export async function seedDemo(mode: SeedMode, emails: { creator: string; client
       proofs.map((s) => ({ submissionId: s.id, source: "user" as const, task: "post_checklist" as const, pass: true, checks: { ticked: ["brandTag", "hashtags", "window"], missing: [] }, createdBy: "Mei Tan" })),
     );
     await db.insert(schema.payouts).values([
-      { assignmentId: aAina.id, amountCents: 150000, scheduledFor: "2026-10-23", approvedBy: "Mei Tan", approvedAt: new Date("2026-10-22T09:00:00+08:00"), status: "paid" },
-      { assignmentId: aJason.id, amountCents: 120000, scheduledFor: "2026-10-29", status: "awaiting_approval" },
+      { assignmentId: aAina.id, amountCents: 150000, scheduledFor: "2026-11-20", approvedBy: "Mei Tan", approvedAt: new Date("2026-11-19T09:00:00+08:00"), status: "paid" },
+      { assignmentId: aJason.id, amountCents: 120000, scheduledFor: "2026-11-26", status: "awaiting_approval" },
     ]);
   }
   return campaign.id;

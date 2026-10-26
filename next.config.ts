@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   experimental: {
+    agentUpgrade: "security",
     // Well above the 4 MB file rule, so an oversized file reaches checkUpload() and gets a notice, not a crash.
     serverActions: { bodySizeLimit: "20mb" },
   },

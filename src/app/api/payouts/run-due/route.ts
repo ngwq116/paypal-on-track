@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { agencyToday } from "@/lib/domain/today";
 import { payPalFromEnv } from "@/lib/paypal/client";
 import { syncSentInvoices } from "@/lib/services/client-invoices";
-import { runDuePayouts } from "@/lib/services/payouts";
+import { runDuePayouts, syncSentPayouts } from "@/lib/services/payouts";
 
 function authorized(req: Request): boolean {
   const secret = process.env.CRON_SECRET;
@@ -19,7 +19,10 @@ export async function POST(req: Request) {
   const pp = payPalFromEnv();
   // First settle invoices whose "paid" webhook never arrived, so a cleared deposit doesn't block payouts.
   const invoicesSettled = await syncSentInvoices(pp);
-  return NextResponse.json({ today, invoicesSettled, results: await runDuePayouts(pp, today) });
+  const results = await runDuePayouts(pp, today);
+  // Then settle sent payouts whose webhook never arrived.
+  const payoutsSettled = await syncSentPayouts(pp);
+  return NextResponse.json({ today, invoicesSettled, results, payoutsSettled });
 }
 
 // Vercel Cron calls with GET and sends the same "Authorization: Bearer <CRON_SECRET>" header.

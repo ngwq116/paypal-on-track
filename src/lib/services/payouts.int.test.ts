@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { PayPalError, type PayPalClient } from "@/lib/paypal/client";
 import { resetDb, seedPayout } from "@/test/fixtures";
-import { approvePayout, editPayout, rejectPayout, retryPayout, runDuePayouts, sendPayout } from "./payouts";
+import { approvePayout, checkPayoutStatus, editPayout, rejectPayout, retryPayout, runDuePayouts, sendPayout, syncSentPayouts } from "./payouts";
 
 function fakePayPal(impl?: (method: string, path: string, body?: unknown) => Promise<unknown>) {
   const request = vi.fn(impl ?? (async () => ({ batch_header: { payout_batch_id: "BATCH-1", batch_status: "PENDING" } })));
@@ -147,5 +147,60 @@ describe("retryPayout", () => {
     expect(await sendPayout(pp, payout.id, "Wanz")).toEqual({ ok: true });
     const body = request.mock.calls[0][2] as { sender_batch_header: { sender_batch_id: string } };
     expect(body.sender_batch_header.sender_batch_id).toBe(`${payout.id}-2`);
+  });
+});
+
+describe("checkPayoutStatus", () => {
+  const batch = (status: string, payoutId: string, errorName?: string) =>
+    fakePayPal(async () => ({ items: [{ transaction_status: status, payout_item: { sender_item_id: payoutId }, errors: errorName ? { name: errorName } : undefined }] }));
+
+  it("marks a sent payout paid when PayPal says it succeeded, if the webhook never came", async () => {
+    const { payout, assignment } = await seedPayout({ status: "payout_sent", approvedBy: "Wanz", paypalBatchId: "BATCH-1" });
+    const { pp, request } = batch("SUCCESS", payout.id);
+    expect(await checkPayoutStatus(pp, payout.id, "Wanz")).toEqual({ ok: true, status: "paid" });
+    expect(request).toHaveBeenCalledWith("GET", "/v1/payments/payouts/BATCH-1");
+    expect((await payoutRow(payout.id)).status).toBe("paid");
+    const [a] = await db.select().from(schema.assignments).where(eq(schema.assignments.id, assignment.id));
+    expect(a.status).toBe("paid");
+    const [audit] = await db.select().from(schema.auditEvents);
+    expect(audit).toMatchObject({ actor: "paypal", action: "payout.paid", detail: { via: "status check", checkedBy: "Wanz" } });
+  });
+  it("marks it failed with PayPal's error name, so it can be retried", async () => {
+    const { payout } = await seedPayout({ status: "payout_sent", approvedBy: "Wanz", paypalBatchId: "BATCH-1" });
+    expect(await checkPayoutStatus(batch("FAILED", payout.id, "RECEIVER_UNREGISTERED").pp, payout.id, "Wanz")).toEqual({ ok: true, status: "failed" });
+    expect(await payoutRow(payout.id)).toMatchObject({ status: "payout_failed", statusReason: "RECEIVER_UNREGISTERED" });
+  });
+  it("leaves it sent while PayPal is still processing", async () => {
+    const { payout } = await seedPayout({ status: "payout_sent", approvedBy: "Wanz", paypalBatchId: "BATCH-1" });
+    expect(await checkPayoutStatus(batch("PENDING", payout.id).pp, payout.id, "Wanz")).toEqual({ ok: true, status: "pending" });
+    expect((await payoutRow(payout.id)).status).toBe("payout_sent");
+    expect(await actions()).toEqual([]);
+  });
+  it("can't look up a payout PayPal never confirmed (no batch id)", async () => {
+    const { payout } = await seedPayout({ status: "payout_sent", approvedBy: "Wanz" });
+    const { pp, request } = fakePayPal();
+    const r = await checkPayoutStatus(pp, payout.id, "Wanz");
+    expect(r.ok).toBe(false);
+    expect(request).not.toHaveBeenCalled();
+  });
+  it("reports a failed lookup without changing anything", async () => {
+    const { payout } = await seedPayout({ status: "payout_sent", approvedBy: "Wanz", paypalBatchId: "BATCH-1" });
+    const { pp } = fakePayPal(async () => {
+      throw new PayPalError(503, "{}");
+    });
+    expect(await checkPayoutStatus(pp, payout.id, "Wanz")).toEqual({ ok: false, reason: "PayPal couldn't be reached (HTTP 503). Try again later." });
+    expect((await payoutRow(payout.id)).status).toBe("payout_sent");
+  });
+});
+
+describe("syncSentPayouts", () => {
+  it("settles every sent payout PayPal has finished, and touches nothing else", async () => {
+    const sent = await seedPayout({ status: "payout_sent", approvedBy: "Wanz", paypalBatchId: "BATCH-1" });
+    const scheduled = await seedPayout({ status: "scheduled", approvedBy: "Wanz", paypalBatchId: "BATCH-2" });
+    const { pp, request } = fakePayPal(async () => ({ items: [{ transaction_status: "SUCCESS", payout_item: { sender_item_id: sent.payout.id } }] }));
+    expect(await syncSentPayouts(pp)).toBe(1);
+    expect(request).toHaveBeenCalledTimes(1);
+    expect((await payoutRow(sent.payout.id)).status).toBe("paid");
+    expect((await payoutRow(scheduled.payout.id)).status).toBe("scheduled");
   });
 });

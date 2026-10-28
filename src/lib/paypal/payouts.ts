@@ -36,3 +36,21 @@ export async function createPayout(pp: PayPalClient, input: PayoutInput): Promis
   );
   return { batchId: res.batch_header.payout_batch_id, status: res.batch_header.batch_status };
 }
+
+const ITEM_FAILED = new Set(["FAILED", "UNCLAIMED", "BLOCKED", "DENIED", "RETURNED"]);
+
+// The webhook says SUCCEEDED, the batch lookup says SUCCESS. Anything else not listed (PENDING, ONHOLD) is still in flight.
+export function payoutItemOutcome(status: string): "paid" | "failed" | null {
+  if (status === "SUCCESS" || status === "SUCCEEDED") return "paid";
+  return ITEM_FAILED.has(status) ? "failed" : null;
+}
+
+// Backup for a missed webhook: look up the batch and find our item (sender_item_id = payout id).
+export async function getPayoutItem(pp: PayPalClient, batchId: string, payoutId: string): Promise<{ status: string; errorName: string | null } | null> {
+  const res = await pp.request<{
+    items?: Array<{ transaction_status?: string; payout_item?: { sender_item_id?: string }; errors?: { name?: string } }>;
+  }>("GET", `/v1/payments/payouts/${encodeURIComponent(batchId)}`);
+  const item = res.items?.find((i) => i.payout_item?.sender_item_id === payoutId);
+  if (!item?.transaction_status) return null;
+  return { status: item.transaction_status, errorName: item.errors?.name ?? null };
+}

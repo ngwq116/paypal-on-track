@@ -57,10 +57,14 @@ export const createPayPalClient = (cfg: PayPalConfig, fetchImpl: typeof fetch = 
   return { getToken, request };
 }
 
+let shared: PayPalClient | null = null;
+
+// One client per process, so the OAuth token is fetched once and reused until it nears expiry.
 export function payPalFromEnv(): PayPalClient {
   const { PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, PAYPAL_API_BASE } = process.env;
   if (!PAYPAL_CLIENT_ID || !PAYPAL_CLIENT_SECRET || !PAYPAL_API_BASE) {
     throw new Error("Missing PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET or PAYPAL_API_BASE in .env");
   }
-  return createPayPalClient({ clientId: PAYPAL_CLIENT_ID, clientSecret: PAYPAL_CLIENT_SECRET, baseUrl: PAYPAL_API_BASE });
+  shared ??= createPayPalClient({ clientId: PAYPAL_CLIENT_ID, clientSecret: PAYPAL_CLIENT_SECRET, baseUrl: PAYPAL_API_BASE });
+  return shared;
 }

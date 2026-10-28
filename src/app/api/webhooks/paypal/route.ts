@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { payPalFromEnv } from "@/lib/paypal/client";
-import { verifyWebhook, type PayPalWebhookEvent } from "@/lib/paypal/webhooks";
+import { interpretEvent, verifyWebhook, type PayPalWebhookEvent } from "@/lib/paypal/webhooks";
 import { handlePayPalEvent } from "@/lib/services/webhooks";
 
 export async function POST(req: Request) {
@@ -24,7 +24,8 @@ export async function POST(req: Request) {
   }
 
   if (process.env.PAYPAL_WEBHOOK_DEBUG === "1") {
-    console.log("[paypal webhook]", event.event_type, JSON.stringify(event.resource).slice(0, 1500));
+    // Ids and statuses only: the raw resource carries payer emails and names.
+    console.log("[paypal webhook]", event.id, event.event_type, JSON.stringify(interpretEvent(event)));
   }
 
   // A thrown error returns 500, the transaction rolls back, and PayPal retries later.

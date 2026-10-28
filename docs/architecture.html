@@ -74,7 +74,7 @@
     <tr><td>AI model</td><td><strong>Claude Haiku 5.5</strong> (<code>claude-haiku-5-5</code>) via the Anthropic TypeScript SDK. Fallback: Claude Sonnet 5.5 (<code>claude-sonnet-5-5</code>)</td><td>The AI jobs are extraction and comparison, which suit a small, fast model. Haiku costs $0.10 / $0.50 per million input / output tokens, about 20× cheaper than Sonnet 5.5 ($2 / $10). The model is one setting (<code>AI_MODEL</code>), so switching needs no code change.</td></tr>
     <tr><td>Agent ("Should")</td><td>One structured-output call (<code>planApprovals</code>): the instruction plus this campaign's payouts in, payout ids and a one-line summary out. No tools, no MCP.</td><td>The agent can only point at payouts. Ids not in the list are dropped, each proposal is dry-run through <code>canPay()</code>, and a person approves. The PayPal MCP server has <strong>no payouts</strong> tools (<a href="prd.html#questions">PRD Q3</a>), and its invoice tools weren't needed.</td></tr>
     <tr><td>Payments</td><td><strong>PayPal REST API</strong> (sandbox): Invoicing v2, Payouts v1, Webhooks</td><td>Invoicing covers client billing. Payouts covers creator payments, called directly because it is not in the MCP server. Webhooks drive automatic updates. USD only.</td></tr>
-    <tr><td>Scheduled payouts</td><td><code>POST /api/payouts/run-due</code>, called by curl locally or Vercel Cron if hosted</td><td>Sends approved payouts whose date has arrived (R25). "Send now" calls the same code path for one payout, which is what the demo uses.</td></tr>
+    <tr><td>Scheduled payouts</td><td><code>POST /api/payouts/run-due</code>, called by curl locally or Vercel Cron if hosted</td><td>Sends approved payouts whose date has arrived (R25), after settling paid invoices, then settles sent payouts whose webhook never came. "Send now" calls the same code path for one payout, which is what the demo uses.</td></tr>
     <tr><td>Server writes</td><td>Next.js <strong>Server Actions</strong> for every form, drag and agent request; four route handlers only (PayPal webhook, daily run, two file downloads)</td><td>No client JSON API to maintain. Each action checks its input, calls a service (a database transaction), then redirects back with a one-line notice.</td></tr>
     <tr><td>Live updates</td><td><code>router.refresh()</code> every 3 s: the page re-renders on the server from Postgres. Paused while dragging and when the tab is hidden</td><td>Simplest thing that works anywhere, and both views always show the same data. Server-Sent Events only if this looks sluggish in the video.</td></tr>
     <tr><td>Hosting</td><td><strong>Local</strong> + cloudflared tunnel; optional <strong>Vercel</strong></td><td>PayPal webhooks need a public URL; a tunnel gives one without hosting costs. Judges run it from the README.</td></tr>
@@ -238,8 +238,8 @@ stateDiagram-v2
   awaiting_approval --> awaiting_approval: amount or date edited (R26)
   scheduled --> awaiting_approval: amount or date edited (R26)
   scheduled --> payout_sent: payout date reached or Send now
-  payout_sent --> paid: webhook PAYOUTS-ITEM.SUCCEEDED
-  payout_sent --> payout_failed: webhook FAILED or UNCLAIMED
+  payout_sent --> paid: webhook SUCCEEDED, or Check status / daily run
+  payout_sent --> payout_failed: webhook or status check FAILED or UNCLAIMED
   payout_failed --> awaiting_approval: retry
   paid --> [*]
   </pre></div>
@@ -353,6 +353,9 @@ sequenceDiagram
     Arif->>API: Approve new due date
     API->>PayPal: PUT /v2/invoicing/invoices/{id} (new due date)
     API->>API: campaign end + invoice due date saved
+    opt saving fails
+      API->>PayPal: PUT old due date back
+    end
   end
   Cal->>API: Next refresh: both views show the new dates
   </pre></div>
@@ -416,12 +419,12 @@ export function canPay(a: Assignment, c: Campaign, v: Verification | null, p: Pa
   <h2>9. PayPal integration</h2>
   <div class="table-wrap"><table>
     <tr><th>Purpose</th><th>Endpoint</th><th>Notes</th></tr>
-    <tr><td>Auth</td><td><code>POST /v1/oauth2/token</code></td><td>Client credentials. Cache the token until shortly before expiry.</td></tr>
+    <tr><td>Auth</td><td><code>POST /v1/oauth2/token</code></td><td>Client credentials. One shared client per process (<code>payPalFromEnv()</code>) caches the token until shortly before expiry.</td></tr>
     <tr><td>Create invoice</td><td><code>POST /v2/invoicing/invoices</code></td><td>Invoice number = <code>OT-{campaign}-{DEP|BAL}</code> for idempotency.</td></tr>
     <tr><td>Send invoice</td><td><code>POST /v2/invoicing/invoices/{id}/send</code></td><td>Deposit sent at campaign start. Balance stays draft until near the end.</td></tr>
     <tr><td>Update due date</td><td><code>PUT /v2/invoicing/invoices/{id}</code></td><td>Full update. Confirm in week 1 that a sent, unpaid invoice can be updated (R19).</td></tr>
     <tr><td>Pay creator</td><td><code>POST /v1/payments/payouts</code></td><td><code>sender_item_id</code> = payout id; <code>sender_batch_id</code> = payout id, or <code>&lt;id&gt;-&lt;attempt&gt;</code> on a retry, so PayPal refuses a duplicate. A retry needs approval again.</td></tr>
-    <tr><td>Payout status</td><td><code>GET /v1/payments/payouts/{batch_id}</code></td><td>Not used yet. Planned as the backup for a missed payout webhook (remaining work 2.5). Invoices already have this backup: Check payment and the daily run.</td></tr>
+    <tr><td>Payout status</td><td><code>GET /v1/payments/payouts/{batch_id}</code></td><td>Backup for a missed payout webhook: the <strong>Check status</strong> button on a sent payout and the daily run (<code>checkPayoutStatus()</code>, <code>syncSentPayouts()</code>). Settles through the same <code>settlePayout()</code> as the webhook. A payout with no batch id (PayPal timed out before answering) can only be settled by the webhook.</td></tr>
     <tr><td>Verify webhook</td><td><code>POST /v1/notifications/verify-webhook-signature</code></td><td>Every webhook is verified before it changes any state.</td></tr>
   </table></div>
   <h3>Webhook events subscribed</h3>
@@ -471,7 +474,7 @@ export function canPay(a: Assignment, c: Campaign, v: Verification | null, p: Pa
 │   │   ├── **/actions.ts                  # Server Actions (every write)
 │   │   └── api/
 │   │       ├── webhooks/paypal/           # verified webhook handler
-│   │       ├── payouts/run-due/           # daily run: settle invoices, send approved payouts that are due
+│   │       ├── payouts/run-due/           # daily run: settle invoices, send due approved payouts, settle sent payouts
 │   │       ├── contracts/[id]/file/       # serve the uploaded contract
 │   │       └── submissions/[id]/file/     # serve screenshots and invoices
 │   ├── components/                        # TeamScheduler, CampaignCalendar, EventPanel, FileDrop, tables, panels

@@ -1,9 +1,9 @@
-import { and, desc, eq, lte } from "drizzle-orm";
+import { and, desc, eq, isNotNull, lte } from "drizzle-orm";
 import { db, schema, type DbOrTx, type Tx } from "@/db";
 import { writeAudit } from "@/lib/audit";
 import { canPay, validatePayoutEdit } from "@/lib/domain/guardrails";
 import { PayPalError, type PayPalClient } from "@/lib/paypal/client";
-import { createPayout } from "@/lib/paypal/payouts";
+import { createPayout, getPayoutItem, payoutItemOutcome } from "@/lib/paypal/payouts";
 import { isUuid } from "@/lib/uuid";
 
 export type ActionResult = { ok: true } | { ok: false; reason: string };
@@ -158,7 +158,7 @@ export async function sendPayout(pp: PayPalClient, payoutId: string, actor: stri
       await writeAudit(db, { campaignId: campaign.id, actor, action: "payout.failed", detail: { payoutId: payout.id, httpStatus: err.status, name } });
       return { ok: false, reason: `PayPal refused the payout: ${name}` };
     }
-    // Timeout or 5xx: PayPal may have created the batch. Keep payout_sent; the webhook settles it.
+    // Timeout or 5xx: PayPal may have created the batch. Keep payout_sent; the webhook (or a status check) settles it.
     await writeAudit(db, { campaignId: campaign.id, actor, action: "payout.unconfirmed", detail: { payoutId: payout.id, error: String(err) } });
     return { ok: false, reason: "PayPal did not confirm the payout. Its status will update when PayPal's webhook arrives." };
   }
@@ -239,4 +239,87 @@ export async function retryPayout(payoutId: string, actor: string): Promise<Acti
     });
     return { ok: true };
   });
+}
+
+// The one place a sent payout becomes paid or failed, whether PayPal's webhook or a status check noticed it.
+export async function settlePayout(
+  tx: Tx,
+  match: { payoutId: string | null; batchId: string | null },
+  result: { outcome: "paid" | "failed"; status: string; reason: string },
+  detail: Record<string, unknown>,
+): Promise<"processed" | "ignored"> {
+  const where =
+    match.payoutId && isUuid(match.payoutId) ? eq(schema.payouts.id, match.payoutId) : match.batchId ? eq(schema.payouts.paypalBatchId, match.batchId) : null;
+  if (!where) return "ignored";
+  const [row] = await tx
+    .select({ payout: schema.payouts, assignment: schema.assignments })
+    .from(schema.payouts)
+    .innerJoin(schema.assignments, eq(schema.assignments.id, schema.payouts.assignmentId))
+    .where(where)
+    .for("update");
+  if (!row) return "ignored";
+  if (row.payout.status === "paid") return "processed"; // out-of-order event after success: keep paid
+  // Only the attempt in flight can be settled: a late answer about an earlier, failed attempt must not touch a retry.
+  if (row.payout.status !== "payout_sent") return "ignored";
+  if (match.batchId && row.payout.paypalBatchId && match.batchId !== row.payout.paypalBatchId) return "ignored";
+
+  if (result.outcome === "paid") {
+    await tx.update(schema.payouts).set({ status: "paid", statusReason: null }).where(eq(schema.payouts.id, row.payout.id));
+    await tx.update(schema.assignments).set({ status: "paid" }).where(eq(schema.assignments.id, row.assignment.id));
+  } else {
+    await tx.update(schema.payouts).set({ status: "payout_failed", statusReason: result.reason }).where(eq(schema.payouts.id, row.payout.id));
+  }
+  await writeAudit(tx, {
+    campaignId: row.assignment.campaignId,
+    actor: "paypal",
+    action: result.outcome === "paid" ? "payout.paid" : "payout.failed",
+    detail: { payoutId: row.payout.id, paypalStatus: result.status, reason: result.reason, ...detail },
+  });
+  return "processed";
+}
+
+// Backup for a missing webhook: ask PayPal what happened to a sent payout.
+export async function checkPayoutStatus(
+  pp: PayPalClient,
+  payoutId: string,
+  actor: string,
+): Promise<{ ok: true; status: "paid" | "failed" | "pending" } | { ok: false; reason: string }> {
+  if (!isUuid(payoutId)) return NOT_FOUND;
+  const [payout] = await db.select().from(schema.payouts).where(eq(schema.payouts.id, payoutId));
+  if (!payout) return NOT_FOUND;
+  if (payout.status === "paid") return { ok: true, status: "paid" };
+  if (payout.status === "payout_failed") return { ok: true, status: "failed" };
+  if (payout.status !== "payout_sent") return { ok: false, reason: "This payout hasn't been sent" };
+  // A timeout before PayPal answered leaves no batch id, and PayPal can't be searched by our id. Only the webhook can settle it.
+  if (!payout.paypalBatchId) {
+    return { ok: false, reason: "PayPal never confirmed this payout, so there's nothing to look up. Check the PayPal dashboard, or wait for the webhook." };
+  }
+  const batchId = payout.paypalBatchId;
+
+  let item: Awaited<ReturnType<typeof getPayoutItem>>;
+  try {
+    item = await getPayoutItem(pp, batchId, payout.id);
+  } catch (err) {
+    console.error("[paypal] payout status check failed", err);
+    return { ok: false, reason: `PayPal couldn't be reached${err instanceof PayPalError ? ` (HTTP ${err.status})` : ""}. Try again later.` };
+  }
+  const outcome = item ? payoutItemOutcome(item.status) : null;
+  if (!item || !outcome) return { ok: true, status: "pending" };
+  const result = { outcome, status: item.status, reason: item.errorName ?? item.status };
+  await db.transaction((tx) => settlePayout(tx, { payoutId: payout.id, batchId }, result, { via: "status check", checkedBy: actor }));
+  return { ok: true, status: outcome };
+}
+
+// For the daily run: settle every sent payout PayPal has finished. Returns how many were settled.
+export async function syncSentPayouts(pp: PayPalClient, actor = "daily run"): Promise<number> {
+  const sent = await db
+    .select({ id: schema.payouts.id })
+    .from(schema.payouts)
+    .where(and(eq(schema.payouts.status, "payout_sent"), isNotNull(schema.payouts.paypalBatchId)));
+  let settled = 0;
+  for (const { id } of sent) {
+    const r = await checkPayoutStatus(pp, id, actor);
+    if (r.ok && r.status !== "pending") settled++;
+  }
+  return settled;
 }

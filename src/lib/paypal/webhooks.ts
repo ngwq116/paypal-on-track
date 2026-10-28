@@ -1,4 +1,5 @@
 import { PayPalClient } from "./client";
+import { payoutItemOutcome } from "./payouts";
 
 const HEADERS = {
     auth_algo: "paypal-auth-algo",
@@ -48,8 +49,6 @@ type Obj = Record<string, unknown>;
 const obj = (v: unknown): Obj => (v && typeof v === "object" ? (v as Obj) : {});
 const str = (v: unknown): string | null => (typeof v === "string" && v ? v : null);
 
-const PAYOUT_FAILED = new Set(["FAILED", "UNCLAIMED", "BLOCKED", "DENIED", "RETURNED"]);
-
 export function interpretEvent(e: PayPalWebhookEvent): InterpretedEvent {
     const r = obj(e.resource);
 
@@ -61,14 +60,15 @@ export function interpretEvent(e: PayPalWebhookEvent): InterpretedEvent {
 
     if (e.event_type.startsWith("PAYMENT.PAYOUTS-ITEM.")) {
         const status = e.event_type.slice("PAYMENT.PAYOUTS-ITEM.".length);
-        if (status !== "SUCCEEDED" && !PAYOUT_FAILED.has(status)) return { kind: "ignored" };
+        const outcome = payoutItemOutcome(status);
+        if (!outcome) return { kind: "ignored" };
         const payoutId = str(obj(r.payout_item).sender_item_id) ?? str(r.sender_item_id);
         const batchId = str(r.payout_batch_id);
 
         if (!payoutId && !batchId) return { kind: "ignored" };
         // A failed item carries PayPal's own error name (e.g. SELF_PAY_NOT_ALLOWED); it says more than "FAILED".
         const reason = str(obj(r.errors).name) ?? status;
-        return { kind: "payout_item", outcome: status === "SUCCEEDED" ? "paid" : "failed", payoutId, batchId, status, reason};
+        return { kind: "payout_item", outcome, payoutId, batchId, status, reason};
     }
 
     return { kind: "ignored" };

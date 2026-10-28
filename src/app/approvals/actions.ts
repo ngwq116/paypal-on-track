@@ -4,7 +4,7 @@ import { parseUsdToCents } from "@/lib/domain/money";
 import { backTo, text } from "@/lib/form";
 import { currentStaff } from "@/lib/staff";
 import { payPalFromEnv } from "@/lib/paypal/client";
-import { approvePayouts, editPayout, rejectPayout, retryPayout, sendPayout, type ActionResult } from "@/lib/services/payouts";
+import { approvePayouts, checkPayoutStatus, editPayout, rejectPayout, retryPayout, sendPayout, type ActionResult } from "@/lib/services/payouts";
 
 function summarize(results: Array<{ result: ActionResult }>): string {
   const done = results.filter((r) => r.result.ok).length;
@@ -48,4 +48,11 @@ export async function reject(form: FormData) {
 export async function retryFailed(payoutId: string) {
   const r = await retryPayout(payoutId, currentStaff());
   backTo("/approvals", r.ok ? "Payout queued again. Approve it to send the retry." : r.reason);
+}
+
+const CHECKED = { paid: "PayPal paid it. Marked as paid.", failed: "PayPal couldn't pay it. Marked as failed; you can retry it.", pending: "PayPal is still processing it. Check again later." };
+
+export async function checkStatus(payoutId: string) {
+  const r = await checkPayoutStatus(payPalFromEnv(), payoutId, currentStaff());
+  backTo("/approvals", r.ok ? CHECKED[r.status] : r.reason);
 }

@@ -1,11 +1,11 @@
 import { Suspense } from "react";
-import { Check, Pencil, RotateCcw, Send } from "lucide-react";
+import { Check, Pencil, RefreshCw, RotateCcw, Send } from "lucide-react";
 import Notice from "@/components/Notice";
 import { buttonVariants } from "@/components/ui/button";
 import { formatDay } from "@/lib/domain/format";
 import { formatUsd } from "@/lib/domain/money";
 import { listApprovalRows } from "@/lib/services/queries";
-import { approveOne, approveSelected, retryFailed, sendNow } from "./actions";
+import { approveOne, approveSelected, checkStatus, retryFailed, sendNow } from "./actions";
 
 type SearchParams = Promise<{ notice?: string }>;
 
@@ -147,10 +147,16 @@ function QueueRow({ row: { payout, assignment, creator, campaign, verified } }: 
             </button>
           )}
           {payout.status === "payout_sent" && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-900">
-              <Send className="size-3" aria-hidden="true" />
-              Sent · waiting for PayPal
-            </span>
+            <>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-900">
+                <Send className="size-3" aria-hidden="true" />
+                Sent · waiting for PayPal
+              </span>
+              <button formAction={checkStatus.bind(null, payout.id)} className={buttonVariants({ variant: "outline" })}>
+                <RefreshCw aria-hidden="true" />
+                Check status
+              </button>
+            </>
           )}
           {payout.status === "payout_failed" && (
             <button formAction={retryFailed.bind(null, payout.id)} className={buttonVariants({ variant: "destructive" })}>

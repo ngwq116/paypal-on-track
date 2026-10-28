@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
-import { createPayPalClient, PayPalError } from "./client";
+import { createPayPalClient, PayPalError, payPalFromEnv, type PayPalClient } from "./client";
 import { toPayPalValue } from "./money";
-import { buildPayoutBody, senderBatchId } from "./payouts";
+import { buildPayoutBody, getPayoutItem, payoutItemOutcome, senderBatchId } from "./payouts";
 
 const cfg = { clientId: "id", clientSecret: "secret", baseUrl: "https://api-m.sandbox.paypal.com" };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
@@ -96,5 +96,40 @@ describe("senderBatchId", () => {
     const body = buildPayoutBody({ payoutId: "p-123", receiverEmail: "c@example.com", amountCents: 100, note: "x", attempt: 2 });
     expect(body.sender_batch_header.sender_batch_id).toBe("p-123-2");
     expect(body.items[0].sender_item_id).toBe("p-123");
+  });
+});
+
+describe("payPalFromEnv", () => {
+  it("returns one shared client, so the token is reused across actions", () => {
+    vi.stubEnv("PAYPAL_CLIENT_ID", "id");
+    vi.stubEnv("PAYPAL_CLIENT_SECRET", "secret");
+    vi.stubEnv("PAYPAL_API_BASE", "https://api-m.sandbox.paypal.com");
+    expect(payPalFromEnv()).toBe(payPalFromEnv());
+    vi.unstubAllEnvs();
+  });
+});
+
+describe("payoutItemOutcome", () => {
+  it("maps PayPal item statuses from the webhook and the batch lookup", () => {
+    expect(payoutItemOutcome("SUCCESS")).toBe("paid");
+    expect(payoutItemOutcome("SUCCEEDED")).toBe("paid");
+    for (const s of ["FAILED", "UNCLAIMED", "BLOCKED", "DENIED", "RETURNED"]) expect(payoutItemOutcome(s)).toBe("failed");
+    expect(payoutItemOutcome("PENDING")).toBeNull();
+    expect(payoutItemOutcome("ONHOLD")).toBeNull();
+  });
+});
+
+describe("getPayoutItem", () => {
+  it("looks up the batch and returns our item's status and error name", async () => {
+    const request = vi.fn(async () => ({
+      items: [
+        { transaction_status: "SUCCESS", payout_item: { sender_item_id: "other" } },
+        { transaction_status: "FAILED", payout_item: { sender_item_id: "p-1" }, errors: { name: "RECEIVER_UNREGISTERED" } },
+      ],
+    }));
+    const pp = { request } as unknown as PayPalClient;
+    expect(await getPayoutItem(pp, "BATCH-1", "p-1")).toEqual({ status: "FAILED", errorName: "RECEIVER_UNREGISTERED" });
+    expect(request).toHaveBeenCalledWith("GET", "/v1/payments/payouts/BATCH-1");
+    expect(await getPayoutItem(pp, "BATCH-1", "missing")).toBeNull();
   });
 });

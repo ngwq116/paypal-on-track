@@ -18,7 +18,7 @@ Updated 2026-10-26. Deadline: **Nov 12, 2026, 12:00pm PST** (plan: submit **Nov 
 | 4 Polish | `4369152`…`ce667f3` | Reset demo, retry a failed payout, campaign summary (R20), AI post pre-check (R24), agent that proposes approvals (R22), README, MIT licence |
 | After e2e | `2d74f26`…now | Next.js 16.4.3 security upgrade; demo dates moved to Nov 16 – Dec 18; Back/Forward crash fix; one signed-in user (Wanz) instead of the "Acting as" picker; clearer buttons and drop-zone uploads; separate influencer and freelancer tables; Team view spans the whole campaign; Calendar chips name the creator and wrap; known small issues fixed; `docs/architecture.html` matches the code |
 
-Automated tests: **107 unit**, **70 integration**, production build passes. E2E run done by hand on 2026-10-26: only UI nitpicks, all fixed.
+Automated tests: **110 unit**, **77 integration**, production build passes. E2E run done by hand on 2026-10-26: only UI nitpicks, all fixed.
 
 ---
 
@@ -44,15 +44,15 @@ Automated tests: **107 unit**, **70 integration**, production build passes. E2E 
 ### 2.3 Optional
 
 - [ ] **Host on Vercel**: steps in [2.5](#25-deploying-to-vercel).
-- [ ] **Payout status backup** (~30 min, test-first). If PayPal times out *and* the webhook is missed, a payout stays "sent" forever and Retry can't help. Add a daily-run step and a button that asks PayPal (`GET /v1/payments/payouts/{batch_id}`) and settles it, like Check payment does for invoices.
-- [ ] **Reuse the PayPal token**: `payPalFromEnv()` (`src/lib/paypal/client.ts:60`) builds a new client per action, so every action fetches a new token. Make it a module-level singleton like `aiFromEnv()`.
-- [ ] **Balance move order**: `approveBalanceMove` updates PayPal first, then the database, with no undo if the database write fails. Very unlikely; a one-line note in the docs is enough.
+- [x] **Payout status backup**: done. A sent payout has a **Check status** button in the queue, and the daily run settles sent payouts too (`GET /v1/payments/payouts/{batch_id}`). A payout PayPal never confirmed (timeout before any answer, so no batch id) still needs the webhook or the PayPal dashboard.
+- [x] **Reuse the PayPal token**: done. `payPalFromEnv()` returns one shared client per process.
+- [x] **Balance move order**: done. If the database write fails after PayPal accepted the new date, PayPal's date is put back.
 - [ ] **Clean up the sandbox**: delete old test invoices (e.g. draft `OT-F415F408-BAL`).
 
 ### 2.4 Keep in mind
 
 - **No login.** Anyone who can reach the app (tunnel URL or Vercel URL) can approve and send sandbox payouts, use your Claude credits, and download contracts and screenshots. Stop the tunnel when not testing; never post the URL publicly.
-- **`PAYPAL_WEBHOOK_DEBUG=0`** when recording: `1` prints payer emails to the console.
+- **`PAYPAL_WEBHOOK_DEBUG=1`** prints each webhook's id, type and status (no emails or names). Leave it at `0` unless debugging.
 - **Bryntum "Trial Version" watermark** stays: only a paid licence removes it.
 - **Dev server** is pinned to port 3000 (`npm run dev` fails if it's taken). If the Calendar looks unstyled after a CSS change, restart it; if that doesn't help, `rm -rf .next/dev` and restart.
 
@@ -114,7 +114,7 @@ Keep the old tunnel webhook too: each URL has its own webhook id, so local and V
 2. Open the URL → top bar shows **W Wanz**; the seeded campaign opens on the Team view with both tables.
 3. **New campaign** → drop `eval/files/contract-kopi-kita.pdf` → **Read contract with AI** → the review page fills in (10–20 s). Uploads must stay under 4 MB; Vercel rejects requests over 4.5 MB.
 4. Deposit: on a campaign whose deposit isn't paid yet (the one you just created in 3, or seed Neon with `db:seed:fresh`), **Send deposit** → pay it as the sandbox client → within a few seconds the Team view shows *Client deposit received*. That proves the webhook reaches Vercel. If it doesn't, check `PAYPAL_WEBHOOK_ID` and that you redeployed; **Check payment** is the fallback.
-5. Vercel → Project → **Settings → Cron Jobs** → **Run** next to `/api/payouts/run-due` → the function log shows `200` with `{"today":…, "invoicesSettled":…, "results":[…]}`. Careful: this sends any approved payouts that are due.
+5. Vercel → Project → **Settings → Cron Jobs** → **Run** next to `/api/payouts/run-due` → the function log shows `200` with `{"today":…, "invoicesSettled":…, "results":[…], "payoutsSettled":…}`. Careful: this sends any approved payouts that are due.
 
 **If something fails**
 - Build fails on Vercel: run `npm run build` locally first; the same error shows there.
@@ -163,7 +163,7 @@ AI_MODEL=claude-haiku-5-5
 CRON_SECRET=...                        # openssl rand -hex 32
 APP_URL=http://localhost:3000
 DEMO_RESET=1                           # shows the Reset demo button
-PAYPAL_WEBHOOK_DEBUG=0                 # 1 only while debugging webhooks (logs contain emails)
+PAYPAL_WEBHOOK_DEBUG=0                 # 1 logs each webhook's id, type and status
 ```
 
 Restart `npm run dev` after every `.env` change.
@@ -269,7 +269,7 @@ Replace `3000` with `3001` if your dev server is on 3001.
 
 | ID | Pri | Test | Steps | Expected |
 |---|---|---|---|---|
-| S1 | MUST | Automated suites | `npm test`, `make test-int`, `npm run build` | 103 unit, 70 integration pass; build "Compiled successfully" |
+| S1 | MUST | Automated suites | `npm test`, `make test-int`, `npm run build` | 110 unit, 77 integration pass; build "Compiled successfully" |
 | S2 | MUST | Pages load | State **M**. Open Home, the campaign (Team, Calendar, Audit log), Approvals | No error overlay; top bar shows On-Track · Campaigns · Approvals and "MT Wanz" on the right |
 | S3 | SHOULD | PayPal smoke 💸 | `npm run paypal:smoke` | Prints a sandbox invoice id and a payout batch id. A 403 after enabling a feature = cached token; `INSUFFICIENT_FUNDS` = no USD balance |
 | S4 | SHOULD | AI eval 🤖 | `npm run eval` | *"Invoices (claude-haiku-5-5): mismatches caught 5/5 … false holds 0/5"* and *"Contracts … every field correct on 3/3"*; exit code 0. Run 2–3 times; record any flaky case |
@@ -388,6 +388,7 @@ Start from **M** with the tunnel running.
 | E15 | MUST | Retry queues again | On the failed row → **Retry** | *"Payout queued again. Approve it to send the retry."*; row shows **Approve** | Payouts: `awaiting_approval`, `attempt` 2, `paypal_batch_id` empty; audit `payout.retry_queued` with `previousReason` |
 | E16 💸 | MUST | Retry pays | Fix the cause (correct email in the DB: `update creators set paypal_email='<your creator email>'`), approve, **Send now** | Paid via webhook | PayPal dashboard: batch with sender batch id `<payout id>-2`; payouts `attempt` 2, `paid` |
 | E17 | SHOULD | Stale event ignored | After E15 (before approving), in the PayPal dashboard → Webhooks events → resend the old FAILED event | Payout stays `awaiting_approval` | Webhook returns 200, outcome `ignored` |
+| E18 💸 | SHOULD | Check status (missed webhook) | Stop the tunnel, **Send now** on an approved payout, wait ~1 min, then **Check status** on its row | *"PayPal paid it. Marked as paid."* (or *"…still processing…"*; click again later). Row leaves the queue | Payout `paid`; audit `payout.paid` by `paypal` with `via: status check`, `checkedBy: Wanz`. Start the tunnel again |
 
 ### 3.10 Agent (R22)
 
@@ -475,7 +476,6 @@ Start from **M**; open the Team view in one window and the Calendar in another.
 ### 3.16 Before you record
 
 - [ ] All **MUST** cases passed.
-- [ ] `PAYPAL_WEBHOOK_DEBUG=0`.
 - [ ] Sandbox business account still has enough **USD** for the payouts you'll send on camera.
 - [ ] Tunnel running and the webhook URL updated.
 - [ ] **Reset demo → Start of demo** right before each take.

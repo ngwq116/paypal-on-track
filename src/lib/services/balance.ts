@@ -26,6 +26,7 @@ export async function getBalanceProposal(campaignId: string) {
 }
 
 // PayPal first, then our records: if PayPal refuses, nothing changes on either side.
+// If our write fails after PayPal accepted, PayPal's due date is put back so the two still agree.
 export async function approveBalanceMove(pp: PayPalClient, input: { campaignId: string; newDueDate: string; actor: string }): Promise<ActionResult> {
   const current = await getBalanceProposal(input.campaignId);
   if (!current?.proposal || !current.balance || current.proposal.newDueDate !== input.newDueDate) {
@@ -40,15 +41,27 @@ export async function approveBalanceMove(pp: PayPalClient, input: { campaignId: 
       return { ok: false, reason: err instanceof PayPalError ? `PayPal refused the new due date (HTTP ${err.status})` : "PayPal couldn't be reached" };
     }
   }
-  await db.transaction(async (tx) => {
-    await tx.update(schema.campaigns).set({ endDate: proposal.newEndDate }).where(eq(schema.campaigns.id, campaign.id));
-    await tx.update(schema.clientInvoices).set({ dueDate: proposal.newDueDate }).where(eq(schema.clientInvoices.id, balance.id));
-    await writeAudit(tx, {
-      campaignId: campaign.id,
-      actor: input.actor,
-      action: "invoice.due_date_moved",
-      detail: { reason: proposal.reason, before: { dueDate: balance.dueDate, campaignEnd: campaign.endDate }, after: { dueDate: proposal.newDueDate, campaignEnd: proposal.newEndDate }, paypalInvoiceId: balance.paypalInvoiceId },
+  try {
+    await db.transaction(async (tx) => {
+      await tx.update(schema.campaigns).set({ endDate: proposal.newEndDate }).where(eq(schema.campaigns.id, campaign.id));
+      await tx.update(schema.clientInvoices).set({ dueDate: proposal.newDueDate }).where(eq(schema.clientInvoices.id, balance.id));
+      await writeAudit(tx, {
+        campaignId: campaign.id,
+        actor: input.actor,
+        action: "invoice.due_date_moved",
+        detail: { reason: proposal.reason, before: { dueDate: balance.dueDate, campaignEnd: campaign.endDate }, after: { dueDate: proposal.newDueDate, campaignEnd: proposal.newEndDate }, paypalInvoiceId: balance.paypalInvoiceId },
+      });
     });
-  });
+  } catch (err) {
+    console.error("[balance] saving the move failed", err);
+    if (!balance.paypalInvoiceId) return { ok: false, reason: "Couldn't save the move. Try again." };
+    try {
+      await updateInvoiceDueDate(pp, balance.paypalInvoiceId, balance.dueDate);
+      return { ok: false, reason: "Couldn't save the move, so PayPal's due date was put back. Try again." };
+    } catch (undoErr) {
+      console.error("[paypal] putting the due date back failed", undoErr);
+      return { ok: false, reason: `Couldn't save the move, and PayPal still shows ${proposal.newDueDate}. Set it back to ${balance.dueDate} in PayPal.` };
+    }
+  }
   return { ok: true };
 }

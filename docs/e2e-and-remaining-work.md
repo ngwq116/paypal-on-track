@@ -1,6 +1,6 @@
 # On-Track: remaining work and end-to-end test guide
 
-Updated 2026-10-26. Deadline: **Nov 12, 2026, 12:00pm PST** (plan: submit **Nov 11**).
+Updated 2026-10-28. Deadline: **Nov 12, 2026, 12:00pm PST** (plan: submit **Nov 11**).
 
 1. [What is done](#1-what-is-done)
 2. [What is still to do](#2-what-is-still-to-do)
@@ -16,7 +16,7 @@ Updated 2026-10-26. Deadline: **Nov 12, 2026, 12:00pm PST** (plan: submit **Nov 
 | 2 Money flows | up to `11cf231` | Deposit and balance invoices in PayPal, verified PayPal webhook, approval queue (approve, batch, edit, reject, Send now), post checklist, freelancer invoice match + override, daily run route, audit log, upload rules, Check payment fallback |
 | 3 AI and views | up to `6888cc6` | Claude reads invoices and contracts (structured output, code decides), eval set (invoices 5/5 caught, 0/5 false holds; contracts 3/3), contract upload → review → create campaign, overdue colours, side panel, 3-second refresh, drag to reschedule, balance due-date proposal that updates the PayPal invoice |
 | 4 Polish | `4369152`…`ce667f3` | Reset demo, retry a failed payout, campaign summary (R20), AI post pre-check (R24), agent that proposes approvals (R22), README, MIT licence |
-| After e2e | `2d74f26`…now | Next.js 16.4.3 security upgrade; demo dates moved to Nov 16 – Dec 18; Back/Forward crash fix; one signed-in user (Wanz) instead of the "Acting as" picker; clearer buttons and drop-zone uploads; separate influencer and freelancer tables; Team view spans the whole campaign; Calendar chips name the creator and wrap; known small issues fixed; `docs/architecture.html` matches the code |
+| After e2e | `2d74f26`…now | Next.js 16.4.3 security upgrade; demo dates moved to Nov 16 – Dec 18; Back/Forward crash fix; one signed-in user (Wanz) instead of the "Acting as" picker; clearer buttons and drop-zone uploads; separate influencer and freelancer tables; Team view spans the whole campaign; Calendar chips name the creator and wrap; known small issues fixed; `docs/architecture.html` matches the code; flow-map fixes: **Check status** for sent payouts (button + daily run), balance-move undo, one shared PayPal client, webhook debug log without payer details |
 
 Automated tests: **110 unit**, **77 integration**, production build passes. E2E run done by hand on 2026-10-26: only UI nitpicks, all fixed.
 
@@ -28,6 +28,8 @@ Automated tests: **110 unit**, **77 integration**, production build passes. E2E 
 
 - [x] Run the end-to-end tests (done 2026-10-26).
 - [x] Fix what the run found (UI nitpicks, done).
+- [ ] **Set a spend limit on the Claude API key** (Anthropic console → Settings → Limits). The app has no login, so anyone with the tunnel or Vercel URL can trigger AI reads on it.
+- [ ] **Check status on the 3 stuck payouts** (@aina.eats, Daniel Lim, @jasonlifts are `payout_sent` in your local data): click **Check status** on each in the approval queue. This is test **E18** and tests the new fix against real PayPal.
 - [ ] **Three real-PayPal checks**, only if your run didn't already cover them: **G14** (due-date change on a *sent* balance invoice), **E16** (a retried payout pays with `sender_batch_id` = `<payout id>-2`), **G11** (the 3-second refresh doesn't cancel a slow drag).
 - [ ] **Record the video** (≤ 2:50) following the PRD demo script (section 3.5 is the same flow). 2–3 takes, **Reset demo** between takes, and the checklist in 3.16 first.
 - [ ] **Devpost text:** problem, what it does, how it's built (PayPal Invoicing + Payouts + webhooks, Claude Haiku 5.5, Bryntum Scheduler + Calendar), the guardrail story ("AI reads, code decides, a person approves"), eval numbers, what's next. Tools: PayPal, Anthropic, Bryntum.
@@ -51,7 +53,8 @@ Automated tests: **110 unit**, **77 integration**, production build passes. E2E 
 
 ### 2.4 Keep in mind
 
-- **No login.** Anyone who can reach the app (tunnel URL or Vercel URL) can approve and send sandbox payouts, use your Claude credits, and download contracts and screenshots. Stop the tunnel when not testing; never post the URL publicly.
+- **No login** (by design, PRD non-goal). Anyone who can reach the app (tunnel URL or Vercel URL) can approve and send sandbox payouts, use your Claude credits (capped by the spend limit in 2.1), and download contracts and screenshots. Stop the tunnel when not testing; share the URL only with judges.
+- **A payout PayPal never answered** (timeout before a batch id came back) can't be looked up with Check status; only the webhook or the PayPal dashboard settles it. Rare.
 - **`PAYPAL_WEBHOOK_DEBUG=1`** prints each webhook's id, type and status (no emails or names). Leave it at `0` unless debugging.
 - **Bryntum "Trial Version" watermark** stays: only a paid licence removes it.
 - **Dev server** is pinned to port 3000 (`npm run dev` fails if it's taken). If the Calendar looks unstyled after a CSS change, restart it; if that doesn't help, `rm -rf .next/dev` and restart.

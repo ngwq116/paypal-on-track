@@ -13,16 +13,29 @@ export function pdfFile(path: string) {
   return { name: path.split("/").pop() ?? "file.pdf", type: "application/pdf", size: bytes.length, bytes };
 }
 
+// Wall-clock time per AI read (successful reads only), shown as seconds.
+const secs = (ms: number | undefined) => (ms === undefined ? "  -  " : `${(ms / 1000).toFixed(1)}s`.padStart(5));
+const latency = (ms: number[]) => {
+  if (!ms.length) return "no successful reads";
+  const sorted = [...ms].sort((a, b) => a - b);
+  return `latency median ${secs(sorted[Math.floor(sorted.length / 2)]).trim()}, max ${secs(sorted.at(-1)).trim()}`;
+};
+
 // Same path as the app: AI reads, toInvoiceFields gates, compareInvoice decides. A gate refusal counts as a hold.
 async function evalInvoices(): Promise<boolean> {
   const ai = aiFromEnv();
   let caught = 0;
   let falseHolds = 0;
+  const ms: number[] = [];
   for (const c of INVOICE_CASES) {
     let match = false;
     let detail = "";
+    const t0 = performance.now();
+    let took: number | undefined;
     try {
       const { data } = await readInvoice(ai, pdfFile(`eval/files/invoice-${c.id}.pdf`));
+      took = performance.now() - t0;
+      ms.push(took);
       const checked = toInvoiceFields(data);
       if (!checked.ok) detail = checked.reason;
       else {
@@ -36,11 +49,11 @@ async function evalInvoices(): Promise<boolean> {
     if (!c.expectMatch && !match) caught++;
     if (c.expectMatch && !match) falseHolds++;
     const verdict = match === c.expectMatch ? "PASS" : "FAIL";
-    console.log(`${verdict}  ${c.id.padEnd(16)} expected ${c.expectMatch ? "match" : "hold "}  got ${match ? "match" : "hold "}  ${detail}`);
+    console.log(`${verdict}  ${c.id.padEnd(16)} ${secs(took)}  expected ${c.expectMatch ? "match" : "hold "}  got ${match ? "match" : "hold "}  ${detail}`);
   }
   const bad = INVOICE_CASES.filter((c) => !c.expectMatch).length;
   const good = INVOICE_CASES.length - bad;
-  console.log(`\nInvoices (${aiModel()}): mismatches caught ${caught}/${bad} (target ${bad}/${bad}), false holds ${falseHolds}/${good} (target 0)\n`);
+  console.log(`\nInvoices (${aiModel()}): mismatches caught ${caught}/${bad} (target ${bad}/${bad}), false holds ${falseHolds}/${good} (target 0), ${latency(ms)}\n`);
   return caught === bad && falseHolds === 0;
 }
 
@@ -68,17 +81,23 @@ function contractDiffs(expected: ContractReading, got: ContractReading): string[
 async function evalContracts(): Promise<boolean> {
   const ai = aiFromEnv();
   let perfect = 0;
+  const ms: number[] = [];
   for (const c of CONTRACT_CASES) {
     let diffs: string[];
+    const t0 = performance.now();
+    let took: number | undefined;
     try {
-      diffs = contractDiffs(c.expected, (await readContract(ai, pdfFile(`eval/files/contract-${c.id}.pdf`))).data);
+      const { data } = await readContract(ai, pdfFile(`eval/files/contract-${c.id}.pdf`));
+      took = performance.now() - t0;
+      ms.push(took);
+      diffs = contractDiffs(c.expected, data);
     } catch (err) {
       diffs = [`error: ${err instanceof Error ? err.message : String(err)}`];
     }
     if (!diffs.length) perfect++;
-    console.log(`${diffs.length ? "FAIL" : "PASS"}  ${c.id.padEnd(12)} ${diffs.join("; ")}`);
+    console.log(`${diffs.length ? "FAIL" : "PASS"}  ${c.id.padEnd(12)} ${secs(took)}  ${diffs.join("; ")}`);
   }
-  console.log(`\nContracts (${aiModel()}): every field correct on ${perfect}/${CONTRACT_CASES.length} (target ${CONTRACT_CASES.length}/${CONTRACT_CASES.length})\n`);
+  console.log(`\nContracts (${aiModel()}): every field correct on ${perfect}/${CONTRACT_CASES.length} (target ${CONTRACT_CASES.length}/${CONTRACT_CASES.length}), ${latency(ms)}\n`);
   return perfect === CONTRACT_CASES.length;
 }
 

@@ -3152,3 +3152,34 @@ Never cut: the AI-reads/code-decides split, the guardrails, or the webhook-drive
 |---|---|---|
 | **4: Polish** | Nov 2–8 | Eval targets met on the chosen model, reset-demo button (reseed roster), README with judge setup steps, sandbox accounts and the tunnel (judges must be able to run it or open a URL), optional hosting on Vercel (hosted Postgres such as Neon, Vercel Cron calling `/api/payouts/run-due`, uploads under Vercel's 4.5 MB request limit), MIT licence, retry for failed payouts, campaign summary (R20), AI post pre-check (R24), agent command bar with Claude-written proposals (R22), Task 9 if cut |
 | **Submit** | Nov 9–11 | Video (≤ 2:50), Devpost text, submit Nov 11 |
+
+---
+
+## Phase 3 notes
+
+Written 2026-10-28, after the end-to-end run (2026-10-26) and a fresh eval run.
+
+**Eval (`npm run eval`, `claude-haiku-5-5`, 2026-10-28)**
+
+| Set | Result | Target | Latency per document |
+|---|---|---|---|
+| Invoices (10: 5 correct, 5 mismatched) | 5/5 mismatches caught, 0/5 false holds | 5/5, 0 | median 2.2 s, max 4.8 s |
+| Contracts (3) | 3/3, every field correct | 3/3 | median 5.6 s, max 8.6 s |
+
+- Each mismatched invoice was held on the right field: amount, PayPal email, deliverable, currency (MYR), payee name.
+- Sonnet 5.5 was not needed. Haiku meets every target; `AI_MODEL=claude-sonnet-5-5` stays as a one-setting fallback.
+- Latency is wall-clock for one read, including the PDF upload. The first read of a run is the slowest (4.8 s invoice, 8.6 s contract), so the demo should expect up to ~10 s on the contract step. The UI shows a spinner on the submit button while it waits.
+- The eval script now prints the time per document and the median and max per set.
+
+**Due-date update on a sent invoice (G14)**
+
+- Not confirmed yet. The local balance invoice is still a draft (never sent to PayPal), so the move has only been exercised on drafts and with a fake PayPal in tests.
+- Either outcome is safe. If PayPal refuses, the notice says "PayPal refused the new due date (HTTP …)" and nothing changes. If the database write fails after PayPal accepted, PayPal's old date is put back (added 2026-10-28).
+- To confirm: send the balance invoice from the PayPal dashboard, drag a deliverable past the campaign end, approve the proposal, then record the result here.
+
+**What the demo run-through showed (2026-10-26)**
+
+- The flows work end to end; only UI nitpicks came up, all fixed since (clearer buttons, drop-zone uploads, separate influencer and freelancer tables, creator names in the Calendar, one signed-in user).
+- The sandbox did not always deliver the deposit's `INVOICING.INVOICE.PAID` webhook. **Check payment** settled it (audit `invoice.paid` with `via: status check`). Payouts had the same gap with no backup: three payouts stayed `payout_sent`. **Check status** (2026-10-28) now covers that.
+- The Team view showed only two weeks, so deliverables couldn't be dragged into December. It now spans the whole campaign plus two weeks.
+

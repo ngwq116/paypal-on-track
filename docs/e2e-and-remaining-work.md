@@ -38,10 +38,10 @@ Automated tests: **110 unit**, **77 integration**, production build passes. E2E 
 
 ### 2.2 Docs (should)
 
-- [ ] **Phase 3 notes** at the bottom of `docs/superpowers/plans/2026-10-17-phase3-ai-views.md`: eval results, AI latency per document, whether PayPal accepted the due-date change on a sent invoice (G14).
-- [ ] **PRD Q7** (`docs/prd.html`): replace "Decided" with the measured result ("Haiku 5.5: invoices 5/5 caught, 0/5 false holds; contracts 3/3 every field correct").
+- [x] **Phase 3 notes** at the bottom of `docs/superpowers/plans/2026-10-17-phase3-ai-views.md`: eval results and latency (2026-10-28). G14 is still open there: add the result once you run it.
+- [x] **PRD Q7** (`docs/prd.html`): now "Answered" with the measured result and latency.
 - [ ] **PRD Q2** (Bryntum trial for judges): ask on the PayPal Discord whether trial packages keep working after 45 days; write the answer in Q2.
-- [ ] **README screenshots** (optional): Team view, approval queue, agent panel in `docs/img/`.
+- [ ] **README screenshots** (optional): Team view, approval queue, agent panel in `docs/img/`. Take them by hand after **Reset demo → Mid** (or while recording): headless Chrome doesn't render the Bryntum views, and your current local data still shows the old "Mei Tan" name and the three stuck payouts.
 
 ### 2.3 Optional
 
@@ -275,7 +275,7 @@ Replace `3000` with `3001` if your dev server is on 3001.
 | S1 | MUST | Automated suites | `npm test`, `make test-int`, `npm run build` | 110 unit, 77 integration pass; build "Compiled successfully" |
 | S2 | MUST | Pages load | State **M**. Open Home, the campaign (Team, Calendar, Audit log), Approvals | No error overlay; top bar shows On-Track · Campaigns · Approvals and "MT Wanz" on the right |
 | S3 | SHOULD | PayPal smoke 💸 | `npm run paypal:smoke` | Prints a sandbox invoice id and a payout batch id. A 403 after enabling a feature = cached token; `INSUFFICIENT_FUNDS` = no USD balance |
-| S4 | SHOULD | AI eval 🤖 | `npm run eval` | *"Invoices (claude-haiku-5-5): mismatches caught 5/5 … false holds 0/5"* and *"Contracts … every field correct on 3/3"*; exit code 0. Run 2–3 times; record any flaky case |
+| S4 | SHOULD | AI eval 🤖 | `npm run eval` | *"Invoices (claude-haiku-5-5): mismatches caught 5/5 … false holds 0/5 …, latency median …"* and *"Contracts … every field correct on 3/3 …"*; exit code 0. Run 2–3 times; record any flaky case |
 
 ### 3.4 Contract → campaign (R1–R4)
 

@@ -1,6 +1,6 @@
 # On-Track: remaining work and end-to-end test guide
 
-Updated 2026-10-28. Deadline: **Nov 12, 2026, 12:00pm PST** (plan: submit **Nov 11**).
+Updated 2026-10-31. Deadline: **Nov 12, 2026, 12:00pm PST** (plan: submit **Nov 11**).
 
 1. [What is done](#1-what-is-done)
 2. [What is still to do](#2-what-is-still-to-do)
@@ -45,7 +45,7 @@ Automated tests: **110 unit**, **77 integration**, production build passes. E2E 
 
 ### 2.3 Optional
 
-- [ ] **Host on Vercel**: steps in [2.5](#25-deploying-to-vercel).
+- [ ] ~~**Host on Vercel**~~: skipped (2026-10-31). Not required: the rules accept a runnable repo with setup steps. The first try failed: `next build` was killed (SIGKILL, out of memory) on Vercel's 8 GB build machine while Turbopack bundled the two Bryntum libraries; reproduced in an 8 GB Docker container. Steps kept in [2.5](#25-deploying-to-vercel) in case you try again; the memory problem has to be solved first.
 - [x] **Payout status backup**: done. A sent payout has a **Check status** button in the queue, and the daily run settles sent payouts too (`GET /v1/payments/payouts/{batch_id}`). A payout PayPal never confirmed (timeout before any answer, so no batch id) still needs the webhook or the PayPal dashboard.
 - [x] **Reuse the PayPal token**: done. `payPalFromEnv()` returns one shared client per process.
 - [x] **Balance move order**: done. If the database write fails after PayPal accepted the new date, PayPal's date is put back.

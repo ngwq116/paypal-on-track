@@ -30,14 +30,15 @@ You need Node 24+, Docker, a PayPal developer account and an Anthropic API key.
    npm run db:seed:roster # client + creators; the demo starts by uploading the contract
    npm run dev            # http://localhost:3000
    ```
-4. **Webhooks** (deposit paid, payout paid): run `cloudflared tunnel --url http://localhost:3000`, then in your PayPal app add a sandbox webhook to `https://<tunnel>/api/webhooks/paypal` with *Invoicing: Invoice paid* and *Payouts item: succeeded, failed, unclaimed, blocked, denied, returned*. Put its id in `PAYPAL_WEBHOOK_ID` and restart. If the sandbox never sends "invoice paid", use **Check payment** on the deposit panel.
+4. **Webhooks** (deposit paid, payout paid): run `cloudflared tunnel --url http://localhost:3000`, then in your PayPal app add a sandbox webhook to `https://<tunnel>/api/webhooks/paypal` with *Invoicing: Invoice paid* and *Payouts item: succeeded, failed, unclaimed, blocked, denied, returned*. Put its id in `PAYPAL_WEBHOOK_ID` and restart.
+   The app also works without the tunnel: **Check payment** on the deposit panel asks PayPal whether the client has paid, and **Check status** on a sent payout in the approval queue asks PayPal whether it was paid. The daily run (`POST /api/payouts/run-due` with `Authorization: Bearer <CRON_SECRET>`) does both for everything outstanding.
 
 ## Demo in six steps
 
-1. Home → **New campaign from a contract** → upload `eval/files/contract-kopi-kita.pdf` → review → **Create campaign**.
-2. Team view → **Send deposit invoice** → **Open as client (sandbox)** → pay as the client account → the banner turns green.
-3. A creator's **Verify post** → upload a screenshot → **Pre-check with AI** → **Mark verified** → Approvals → **Approve** → **Send now**.
-4. Daniel Lim → **Invoice** → upload `eval/files/invoice-bad-amount.pdf` → **Read with AI** → held (its amount, and its example email, differ from the contract); then an invoice with the right amount and the creator's sandbox email → matches.
+1. Home → **New campaign** → drop `eval/files/contract-kopi-kita.pdf` → **Read contract with AI** → review → **Create campaign**.
+2. Team view → **Send deposit invoice** → **Open as client (sandbox)** → pay as the client account → the banner turns green (or click **Check payment**).
+3. An influencer's **Verify post** → drop a screenshot → **Pre-check with AI** → **Mark verified** → Approvals → **Approve** → **Send now**.
+4. Daniel Lim → **Check invoice** → drop `eval/files/invoice-bad-amount.pdf` → **Read invoice with AI** → held (its amount, and its example email, differ from the contract); then an invoice with the right amount and the creator's sandbox email → matches.
 5. Calendar → drag a post past the campaign end → approve the proposed balance due date (updates the PayPal invoice).
 6. **Audit log** and the campaign summary.
 
